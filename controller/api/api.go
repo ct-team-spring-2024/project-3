@@ -1,6 +1,7 @@
 package api
 
 import (
+	"nabatdb/controller/internal"
 	"net/http"
 	"strings"
 
@@ -24,14 +25,15 @@ func nodeJoin(c *gin.Context) {
 		return
 	}
 
-	host := parts[0]
+	address := parts[0]
 	port := parts[1]
 
-	logrus.Infof("Address: %s, Port: %s", host, port)
+	logrus.Infof("Address: %s, Port: %s", address, port)
+	internal.NodeJoin(address, port)
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Received and processed successfully",
-		"address": host,
+		"address": address,
 		"port":    port,
 	})
 }

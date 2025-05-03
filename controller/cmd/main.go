@@ -2,9 +2,10 @@ package main
 
 import (
 	"nabatdb/controller/api"
+	"nabatdb/controller/internal"
 
-	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 func main() {
@@ -13,6 +14,8 @@ func main() {
 		FullTimestamp: true,
 	})
 	logrus.Info("Starting: Controller")
+
+	internal.InitState()
 
 	router := gin.Default()
 	api.SetupRoutes(router)
