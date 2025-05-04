@@ -1,5 +1,7 @@
 package internal
 
+import "fmt"
+
 type Node struct {
 	NodeId  int
 	Address string
@@ -33,4 +35,24 @@ func NodeJoin(address string, port string) {
 		Address: address,
 		Port: port,
 	})
+	// TODO recalculate the partitions + select leader
+}
+
+func GetNode(id int) (Node, error) {
+	for _, node := range AppState.Nodes {
+		if node.NodeId == id {
+			return node, nil
+		}
+	}
+	return Node{}, fmt.Errorf("Node id not found")
+}
+
+func GetPartitionNodes(partitionId int) []Node {
+	nodeIds := AppState.PartitionNodes[partitionId]
+	result := make([]Node, 0, 0)
+	for _, id := range nodeIds {
+		node, _ := GetNode(id)
+		result = append(result, node)
+	}
+	return result
 }
