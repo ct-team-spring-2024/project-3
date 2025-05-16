@@ -3,16 +3,18 @@ package internal
 import (
 	"fmt"
 	"sync"
+
 )
 
 var (
 	DB *InMemorydb
 )
-
 type InMemorydb struct {
 	Table map[string][]byte
 	mu    sync.RWMutex
 }
+
+
 
 func InitDb() {
 	DB = &InMemorydb{
