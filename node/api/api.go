@@ -14,8 +14,7 @@ func get(c *gin.Context) {
 		c.AbortWithStatusJSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-
-	value, err := internal.DB.Get(requestBody.Key)
+	value , err := internal.Node.GetKey(requestBody.Key)
 	if err != nil {
 		c.AbortWithStatusJSON(404, gin.H{"error": err.Error()})
 		return
@@ -36,8 +35,7 @@ func set(c *gin.Context) {
 	}
 
 	// TODO process error
-	internal.DB.Set(requestBody.Key, []byte(requestBody.Value))
-
+	internal.Node.SetKey(requestBody.Key , []byte(requestBody.Value))
 	c.JSON(200, gin.H{"message": "Key-Value pair saved", "key": requestBody.Key})
 }
 
@@ -51,7 +49,7 @@ func del(c *gin.Context) {
 		return
 	}
 
-	_, err := internal.DB.Delete(requestBody.Key)
+	err := internal.Node.DeleteKey(requestBody.Key)
 	if err != nil {
 		c.AbortWithStatusJSON(500, gin.H{"error": "Failed to delete key"})
 		return

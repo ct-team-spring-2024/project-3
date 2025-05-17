@@ -47,7 +47,7 @@ func main() {
 	logrus.Info("Starting: Node")
 
 	// TODO execute node-join
-	internal.InitDb()
+	internal.InitNode()
 
 	router := gin.Default()
 	api.SetupRoutes(router)
