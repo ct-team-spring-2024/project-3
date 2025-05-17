@@ -65,10 +65,20 @@ func fetchPartitionNodes(c *gin.Context) {
 	c.JSON(http.StatusOK, responseBody)
 }
 
+func startDB(c *gin.Context) {
+	logrus.Info("Starting: NabatDB")
+	internal.InitDB()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Database initialized successfully",
+	})
+}
+
 func SetupRoutes(router *gin.Engine) {
 	// router.GET("/node-join", func(c *gin.Context) {
 	//	c.JSON(200, gin.H{"message": "Hello from another file!"})
 	// })
 	router.POST("/node-join", nodeJoin)
 	router.GET("/fetch-partition-nodes", fetchPartitionNodes)
+	router.POST("/start-db", startDB)
 }
