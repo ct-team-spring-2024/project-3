@@ -30,7 +30,6 @@ type State struct {
 	ClusterSize          int
 	PartitionNodes       map[int][]int
 	PartitionLeaderNodes map[int]int
-	NodesPartitions      map[int][]int
 	DBStatus             DBStatus
 	NextPartitionNodes   map[int][]int // the topology that the system must diverg to
 }
@@ -44,7 +43,6 @@ func InitState() {
 		ClusterSize: 0,
 		PartitionNodes: make(map[int][]int),
 		PartitionLeaderNodes: make(map[int]int),
-		NodesPartitions: make(map[int][]int),
 		DBStatus: Init,
 		NextPartitionNodes: make(map[int][]int),
 	}
@@ -90,7 +88,10 @@ func GetPartitionNodes(partitionId int) []Node {
 
 func CalculateNext() {
 	// First copy the current partitions to the new one
-
+	AppState.NextPartitionNodes = make(map[int][]int)
+	for k, v := range AppState.PartitionNodes {
+		AppState.NextPartitionNodes[k] = v
+	}
 
 	// 1. TODO Delete extra replicas (replicas from dead nodes, replicas from bigger replica count,
 	//                                replicas from overloaded nodes)
@@ -98,15 +99,15 @@ func CalculateNext() {
 	// 2. Add replicas
 	for pId := 0; pId < AppState.PartitionCount; pId++ {
 		// calculate current count
-		currentCount := len(AppState.PartitionNodes[pId])
+		currentCount := len(AppState.NextPartitionNodes[pId])
 		toBeAddedCount := AppState.ReplicationCount - currentCount
 		// Find nodes will lowest number of partition
 		for t := 0; t < toBeAddedCount; t++ {
 			mnCnt := 0
 			mnCntId := -1
 			for _, node := range AppState.Nodes {
-				nodeCurrentCount := len(AppState.NodesPartitions[node.NodeId])
-				if mnCnt < nodeCurrentCount || mnCntId == -1 {
+				nodeCurrentCount := len(getNodePartitions(AppState.NextPartitionNodes)[node.NodeId])
+				if mnCnt > nodeCurrentCount || mnCntId == -1 {
 					mnCnt = nodeCurrentCount
 					mnCntId = node.NodeId
 				}
@@ -115,9 +116,20 @@ func CalculateNext() {
 				logrus.Error("No node found for assiging the replica!!")
 				panic("No node found for assiging the replica")
 			}
+			logrus.Infof("mntCntId => %d", mnCntId)
 			AppState.NextPartitionNodes[pId] = append(AppState.NextPartitionNodes[pId], mnCntId)
 		}
 	}
+}
+
+func getNodePartitions(partitionNodes map[int][]int) map[int][]int {
+	nodePartitions := make(map[int][]int)
+	for partitionID, nodeIDs := range partitionNodes {
+		for _, nodeID := range nodeIDs {
+			nodePartitions[nodeID] = append(nodePartitions[nodeID], partitionID)
+		}
+	}
+	return nodePartitions
 }
 
 // func CalHash(k string) uint64 {
