@@ -5,10 +5,6 @@ import (
 	"sync"
 
 )
-
-var (
-	DB *InMemorydb
-)
 type InMemorydb struct {
 	Table map[string][]byte
 	mu    sync.RWMutex
@@ -16,8 +12,8 @@ type InMemorydb struct {
 
 
 
-func InitDb() {
-	DB = &InMemorydb{
+func InitDb() *InMemorydb{
+	return &InMemorydb{
 		Table: make(map[string][]byte),
 	}
 }
