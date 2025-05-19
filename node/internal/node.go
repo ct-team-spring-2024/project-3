@@ -37,7 +37,7 @@ func (node *nabatNode) SetShard(shardNumber int) error {
 	return nil
 }
 
-func (node *nabatNode) SetLeaderForShard(shardNumber int) (bool, error) {
+func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
 	return true, nil
 }
 

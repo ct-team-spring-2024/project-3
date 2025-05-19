@@ -2,10 +2,12 @@ package internal
 
 import (
 	"fmt"
-	"nabatdb/controller/http"
 	"strconv"
+	"math/rand"
 
 	"github.com/sirupsen/logrus"
+
+	"nabatdb/controller/http"
 )
 
 type Node struct {
@@ -25,15 +27,16 @@ const (
 var AppState *State
 
 type State struct {
-	Nodes                []Node
-	NextNodeId           int
-	PartitionCount       int
-	ReplicationCount     int
-	ClusterSize          int
-	PartitionNodes       map[int][]int
-	PartitionLeaderNodes map[int]int
-	DBStatus             DBStatus
-	NextPartitionNodes   map[int][]int // the topology that the system must diverg to
+	Nodes                    []Node
+	NextNodeId               int
+	PartitionCount           int
+	ReplicationCount         int
+	ClusterSize              int
+	PartitionNodes           map[int][]int
+	PartitionLeaderNodes     map[int]int
+	DBStatus                 DBStatus
+	NextPartitionNodes       map[int][]int // the topology that the system must diverg to
+	NextPartitionLeaderNodes map[int]int
 }
 
 func InitState() {
@@ -47,6 +50,7 @@ func InitState() {
 		PartitionLeaderNodes: make(map[int]int),
 		DBStatus: Init,
 		NextPartitionNodes: make(map[int][]int),
+		NextPartitionLeaderNodes: make(map[int]int),
 	}
 }
 
@@ -63,6 +67,12 @@ func InitDB() {
 			logrus.Infof("Assigning %d to %s", p, address)
 			http.AssignPartitionToNode(address, p)
 		}
+	}
+	for pId, nodeId := range AppState.NextPartitionLeaderNodes {
+		node, _ := GetNode(nodeId)
+		address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+		logrus.Infof("Assigning Leader of %d to %s", pId, address)
+		http.AssignPartitionLeaderToNode(address, pId)
 	}
 }
 
@@ -130,6 +140,18 @@ func CalculateNext() {
 			logrus.Infof("mntCntId => %d", mnCntId)
 			AppState.NextPartitionNodes[pId] = append(AppState.NextPartitionNodes[pId], mnCntId)
 		}
+	}
+	// 3. Assign Leaders (In each partition, assign one random replica as the leader)
+	for pId := 0; pId < AppState.PartitionCount; pId++ {
+		nodes := AppState.NextPartitionNodes[pId]
+		if len(nodes) == 0 {
+			fmt.Printf("Partition %d has no nodes assigned\n", pId)
+			continue
+		}
+		// Pick a random node as leader
+		leader := nodes[rand.Intn(len(nodes))]
+		logrus.Infof("Partition %d: Random leader selected -> %d\n", pId, leader)
+		AppState.NextPartitionLeaderNodes[pId] = leader
 	}
 }
 

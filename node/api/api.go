@@ -60,7 +60,7 @@ func del(c *gin.Context) {
 
 func setShard(c *gin.Context) {
 	var requestBody struct {
-		ShardID int `json:"shard_id"` // Must match JSON key exactly
+		ShardID int `json:"shard_id"`
 	}
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
@@ -68,13 +68,30 @@ func setShard(c *gin.Context) {
 		return
 	}
 
-	// TODO What is index??
 	if err := internal.Node.SetShard(requestBody.ShardID); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"status": "Partition set successfully", "partition_id": requestBody.ShardID})
+	c.JSON(200, gin.H{"status": "Shard set successfully", "shard_id": requestBody.ShardID})
+}
+
+func setShardLeader(c *gin.Context) {
+	var requestBody struct {
+		ShardID int `json:"shard_id"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+
+	if _, err := internal.Node.SetShardLeader(requestBody.ShardID); err != nil {
+		c.JSON(500, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(200, gin.H{"status": "Shard Leader set successfully", "shard_id": requestBody.ShardID})
 }
 
 func SetupRoutes(router *gin.Engine) {
@@ -83,4 +100,5 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/delete", del)
 
 	router.POST("/set-shard", setShard)
+	router.POST("/set-shard-leader", setShardLeader)
 }

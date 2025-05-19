@@ -10,6 +10,6 @@ type db interface {
 type node interface {
 	GetShardsRoles() (map[int]string, error)
 	SetShards(shardNumber int) ([]int, error)
-	SetLeaderForShard(int) (bool, error)
+	SetShardLeader(int) (bool, error)
 	IsAlive() bool
 }
