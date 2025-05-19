@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 	"strings"
+	"fmt"
+
 	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
 
@@ -40,31 +42,47 @@ func nodeJoin(c *gin.Context) {
 	})
 }
 
-func fetchPartitionNodes(c *gin.Context) {
-	var requestBody struct {
-		PartitionId int `json:"partitionId"`
-	}
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
+func fetchRoutingInfo(c *gin.Context) {
+	// Fetch the partition nodes
+	partitionNodes := internal.GetPartitionNodes()
+	partitionLeaderNodes := internal.GetPartitionLeaderNodes()
+
+	type partitionInfo struct {
+		NodeAddresses []string `json:"node_addresses"`
+		LeaderAddress string   `json:"leader_address"`
 	}
 
-	nodes := internal.GetPartitionNodes(requestBody.PartitionId)
+	routing := make(map[int]partitionInfo)
+	totalPartitions := 0
 
-	type NodeResponse struct {
-		ID      int    `json:"id"`
-		Host    string `json:"host"`
-		Port    string `json:"port"`
+	for pID, nodes := range partitionNodes {
+		totalPartitions++
+		leader, _ := internal.GetNode(partitionLeaderNodes[pID])
+		leaderAddress := fmt.Sprintf("%s:%s", leader.Address, leader.Port)
+
+		var addresses []string
+		for _, nodeID := range nodes {
+			node, _ := internal.GetNode(nodeID)
+			addresses = append(addresses, fmt.Sprintf("%s:%s", node.Address, node.Port))
+		}
+
+		routing[pID] = partitionInfo{
+			NodeAddresses: addresses,
+			LeaderAddress: leaderAddress,
+		}
 	}
-	responseBody := make([]NodeResponse, 0, len(nodes))
-	for _, node := range nodes {
-		responseBody = append(responseBody, NodeResponse{
-			ID:   node.NodeId,
-			Host: node.Address,
-			Port: node.Port,
-		})
+
+
+	var response struct {
+		TotalPartitions int                   `json:"total_partitions"`
+		RoutingInfo     map[int]partitionInfo `json:"routing_info"`
 	}
-	c.JSON(http.StatusOK, responseBody)
+
+	response.TotalPartitions = totalPartitions
+	response.RoutingInfo = routing
+
+
+	c.JSON(http.StatusOK, response)
 }
 
 func startDB(c *gin.Context) {
@@ -81,6 +99,6 @@ func SetupRoutes(router *gin.Engine) {
 	//	c.JSON(200, gin.H{"message": "Hello from another file!"})
 	// })
 	router.POST("/node-join", nodeJoin)
-	router.GET("/fetch-partition-nodes", fetchPartitionNodes)
+	router.GET("/fetch-routing-info", fetchRoutingInfo)
 	router.POST("/start-db", startDB)
 }

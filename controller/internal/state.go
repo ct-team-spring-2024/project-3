@@ -57,7 +57,6 @@ func InitState() {
 func InitDB() {
 	// Calculate the cluster topology
 	AppState.DBStatus = Updating
-	AppState.NextPartitionNodes = AppState.PartitionNodes
 	CalculateNext()
 	// Call nodes for announcing their roles
 	nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
@@ -74,6 +73,12 @@ func InitDB() {
 		logrus.Infof("Assigning Leader of %d to %s", pId, address)
 		http.AssignPartitionLeaderToNode(address, pId)
 	}
+	// Now, change the state and the PartitionNodes
+	AppState.DBStatus = Running
+	AppState.PartitionNodes = AppState.NextPartitionNodes
+	AppState.PartitionLeaderNodes = AppState.NextPartitionLeaderNodes
+	AppState.NextPartitionNodes = make(map[int][]int)
+	AppState.NextPartitionLeaderNodes = make(map[int]int)
 }
 
 func NodeJoin(address string, port string) string {
@@ -97,14 +102,12 @@ func GetNode(id int) (Node, error) {
 	return Node{}, fmt.Errorf("Node id not found")
 }
 
-func GetPartitionNodes(partitionId int) []Node {
-	nodeIds := AppState.PartitionNodes[partitionId]
-	result := make([]Node, 0, 0)
-	for _, id := range nodeIds {
-		node, _ := GetNode(id)
-		result = append(result, node)
-	}
-	return result
+func GetPartitionNodes() map[int][]int {
+	return AppState.PartitionNodes
+}
+
+func GetPartitionLeaderNodes() map[int]int {
+	return AppState.PartitionLeaderNodes
 }
 
 func CalculateNext() {
