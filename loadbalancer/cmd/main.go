@@ -7,19 +7,15 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/gin-gonic/gin"
+
+	"nabatdb/loadbalancer/internal"
+	"nabatdb/loadbalancer/api"
 )
 
-type partitionInfo struct {
-	NodeAddresses []string `json:"node_addresses"`
-	LeaderAddress string   `json:"leader_address"`
-}
 
-type RoutingInfo struct {
-	TotalPartitions int                   `json:"total_partitions"`
-	RoutingInfo     map[int]partitionInfo `json:"routing_info"`
-}
 
-func fetchRoutingData(client *http.Client, url string, routingData *RoutingInfo) error {
+func fetchRoutingData(client *http.Client, url string, routingData *internal.RoutingInfo) error {
 	resp, err := client.Get(url)
 	if err != nil {
 		return err
@@ -32,7 +28,7 @@ func fetchRoutingData(client *http.Client, url string, routingData *RoutingInfo)
 
 	var result struct {
 		TotalPartitions int                   `json:"total_partitions"`
-		RoutingInfo     map[int]partitionInfo `json:"routing_info"`
+		RoutingInfo     map[int]internal.PartitionInfo `json:"routing_info"`
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -46,13 +42,12 @@ func fetchRoutingData(client *http.Client, url string, routingData *RoutingInfo)
 }
 
 func main() {
-	var routingInfo RoutingInfo
 
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
 
-	err := fetchRoutingData(client, "http://localhost:8080/fetch-routing-info", &routingInfo)
+	err := fetchRoutingData(client, "http://localhost:8080/fetch-routing-info", &internal.AppState)
 	if err != nil {
 		logrus.Fatalf("Failed to fetch initial routing data: %v", err)
 	}
@@ -64,15 +59,19 @@ func main() {
 
 		for {
 			<-ticker.C
-			err := fetchRoutingData(client, "http://localhost:8080/fetch-routing-info", &routingInfo)
+			err := fetchRoutingData(client, "http://localhost:8080/fetch-routing-info", &internal.AppState)
 			if err != nil {
 				logrus.Warnf("Failed to update routing data: %v", err)
 			} else {
 				logrus.Info("Successfully updated routing data")
-				logrus.Infof("routingInfo => %+v", routingInfo)
+				logrus.Infof("routingInfo => %+v", internal.AppState)
 			}
 		}
 	}()
+
+	router := gin.Default()
+	api.SetupRoutes(router)
+	router.Run(":8081")
 
 	select {} // Keep the main function running
 }

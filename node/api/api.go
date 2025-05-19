@@ -2,7 +2,9 @@ package api
 
 import (
 	"nabatdb/node/internal"
+
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 )
 
 func get(c *gin.Context) {
@@ -29,10 +31,12 @@ func set(c *gin.Context) {
 		Value string `json:"value"`
 	}
 
+	logrus.Infof("#1")
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		c.AbortWithStatusJSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
+	logrus.Infof("#2")
 
 	// TODO process error
 	internal.Node.SetKey(requestBody.Key , []byte(requestBody.Value))
@@ -95,7 +99,7 @@ func setShardLeader(c *gin.Context) {
 }
 
 func SetupRoutes(router *gin.Engine) {
-	router.GET("/get", get)
+	router.POST("/get", get)
 	router.POST("/set", set)
 	router.POST("/delete", del)
 
