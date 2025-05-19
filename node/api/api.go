@@ -58,9 +58,9 @@ func del(c *gin.Context) {
 	c.JSON(200, gin.H{"message": "Key deleted successfully", "key": requestBody.Key})
 }
 
-func setPartition(c *gin.Context) {
+func setShard(c *gin.Context) {
 	var requestBody struct {
-		PartitionID int `json:"partition id"` // Must match JSON key exactly
+		ShardID int `json:"shard_id"` // Must match JSON key exactly
 	}
 
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
@@ -69,12 +69,12 @@ func setPartition(c *gin.Context) {
 	}
 
 	// TODO What is index??
-	if err := internal.Node.SetShard(0, requestBody.PartitionID); err != nil {
+	if err := internal.Node.SetShard(requestBody.ShardID); err != nil {
 		c.JSON(500, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(200, gin.H{"status": "Partition set successfully", "partition_id": requestBody.PartitionID})
+	c.JSON(200, gin.H{"status": "Partition set successfully", "partition_id": requestBody.ShardID})
 }
 
 func SetupRoutes(router *gin.Engine) {
@@ -82,5 +82,5 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/set", set)
 	router.POST("/delete", del)
 
-	router.POST("/set-partition", setPartition)
+	router.POST("/set-shard", setShard)
 }

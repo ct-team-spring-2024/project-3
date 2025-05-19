@@ -60,6 +60,7 @@ func InitDB() {
 	for _, node := range AppState.Nodes {
 		for _, p := range nodePartitions[node.NodeId] {
 			address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+			logrus.Infof("Assigning %d to %s", p, address)
 			http.AssignPartitionToNode(address, p)
 		}
 	}

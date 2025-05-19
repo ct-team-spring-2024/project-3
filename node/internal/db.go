@@ -10,9 +10,7 @@ type InMemorydb struct {
 	mu    sync.RWMutex
 }
 
-
-
-func InitDb() *InMemorydb{
+func InitDB() *InMemorydb{
 	return &InMemorydb{
 		Table: make(map[string][]byte),
 	}
