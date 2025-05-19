@@ -2,6 +2,8 @@ package internal
 
 import (
 	"fmt"
+	"nabatdb/controller/http"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 )
@@ -49,21 +51,29 @@ func InitState() {
 }
 
 func InitDB() {
-	logrus.Infof("#1 Init AppState %+v", AppState)
+	// Calculate the cluster topology
 	AppState.DBStatus = Updating
 	AppState.NextPartitionNodes = AppState.PartitionNodes
 	CalculateNext()
-	logrus.Infof("#2 Init AppState %+v", AppState)
+	// Call nodes for announcing their roles
+	nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
+	for _, node := range AppState.Nodes {
+		for _, p := range nodePartitions[node.NodeId] {
+			address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+			http.AssignPartitionToNode(address, p)
+		}
+	}
 }
 
-func NodeJoin(address string, port string) {
-	logrus.Info("ADDED")
+func NodeJoin(address string, port string) string {
+	nodeId := AppState.NextNodeId
 	AppState.Nodes = append(AppState.Nodes, Node{
 		NodeId: AppState.NextNodeId,
 		Address: address,
 		Port: port,
 	})
 	AppState.NextNodeId++
+	return strconv.Itoa(nodeId)
 	// TODO recalculate the partitions + select leader
 }
 
@@ -131,6 +141,8 @@ func getNodePartitions(partitionNodes map[int][]int) map[int][]int {
 	}
 	return nodePartitions
 }
+
+
 
 // func CalHash(k string) uint64 {
 //	h := fnv.New64a()

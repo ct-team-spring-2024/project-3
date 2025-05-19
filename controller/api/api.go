@@ -29,9 +29,11 @@ func nodeJoin(c *gin.Context) {
 	port := parts[1]
 
 	logrus.Infof("Address: %s, Port: %s", address, port)
-	internal.NodeJoin(address, port)
+	nodeId := internal.NodeJoin(address, port)
 
+	logrus.Info("#3")
 	c.JSON(http.StatusOK, gin.H{
+		"node_id": nodeId,
 		"message": "Received and processed successfully",
 		"address": address,
 		"port":    port,

@@ -1,12 +1,12 @@
 package main
 
 import (
-	"math/rand"
-	"time"
-	"net"
 	"fmt"
+	"math/rand"
 	"nabatdb/node/api"
 	"nabatdb/node/internal"
+	"net"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
@@ -46,12 +46,13 @@ func main() {
 	})
 	logrus.Info("Starting: Node")
 
-	// TODO execute node-join
-	internal.InitNode()
+	port := getAvailablePort()
+	// TODO localhost should be the ip
+	address := fmt.Sprintf("%s:%d","localhost", port)
+	internal.InitNode(address)
 
 	router := gin.Default()
 	api.SetupRoutes(router)
-	port := getAvailablePort()
 	logrus.Infof("Starting server on port %d", port)
 
 	if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {

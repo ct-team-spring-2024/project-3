@@ -1,6 +1,11 @@
 package internal
 
-import "fmt"
+import (
+	"fmt"
+	"nabatdb/node/http"
+
+	"github.com/sirupsen/logrus"
+)
 
 var (
 	Node *nabatNode
@@ -12,10 +17,13 @@ type nabatNode struct {
 	Rlog       []string
 }
 
-func InitNode() {
+func InitNode(address string) {
 	Node = &nabatNode{ShardsRole: make(map[int]string), Shards: make(map[int]*InMemorydb), Rlog: make([]string, 0)}
 	Node.Shards[0] = &InMemorydb{Table: make(map[string][]byte, 0)}
 
+	// Send a join to the controller
+	nodeId, _ := http.SendNodeJoin(address)
+	logrus.Infof("nodeId => %s", nodeId)
 }
 
 func (node *nabatNode) GetShardsRoles() (map[int]string, error) {

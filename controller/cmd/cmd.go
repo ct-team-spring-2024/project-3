@@ -7,7 +7,7 @@ import (
 
 	"fmt"
 	"os"
-	"strconv"
+	// "strconv"
 	"net/http"
 	"io"
 
@@ -35,12 +35,12 @@ var controllerCmd = &cobra.Command{
 		internal.InitState()
 		// TODO: Mock new nodes
 		// MOCK
-		for i := 0; i < 10; i++ {
-			port := 8081 + i
-			address := "localhost"
-			internal.NodeJoin(address, strconv.Itoa(port))
-			logrus.Infof("Node joined: %s:%d", address, port)
-		}
+		// for i := 0; i < 10; i++ {
+		//	port := 8081 + i
+		//	address := "localhost"
+		//	internal.NodeJoin(address, strconv.Itoa(port))
+		//	logrus.Infof("Node joined: %s:%d", address, port)
+		// }
 		// MOCK
 
 		router := gin.Default()
