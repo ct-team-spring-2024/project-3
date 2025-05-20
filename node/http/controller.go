@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"nabatdb/commons"
 	"net/http"
 
 	"github.com/sirupsen/logrus"
@@ -49,4 +50,20 @@ func SendNodeJoin(address string) (string, error) {
 	}
 
 	return responseBody.NodeID, nil
+}
+
+func FetchPartitionCount() int {
+	url := fmt.Sprintf("http://%s/fetch-routing-info", controllerAddr)
+	resp, _ := http.Get(url)
+	defer resp.Body.Close()
+	var result struct {
+		TotalPartitions int                           `json:"total_partitions"`
+		RoutingInfo     map[int]commons.PartitionInfo `json:"routing_info"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		panic(err)
+	}
+	logrus.Infof("rrrr => %+v", result)
+	return result.TotalPartitions
 }

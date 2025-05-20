@@ -53,10 +53,8 @@ func fetchRoutingInfo(c *gin.Context) {
 	}
 
 	routing := make(map[int]partitionInfo)
-	totalPartitions := 0
 
 	for pID, nodes := range partitionNodes {
-		totalPartitions++
 		leader, _ := internal.GetNode(partitionLeaderNodes[pID])
 		leaderAddress := fmt.Sprintf("%s:%s", leader.Address, leader.Port)
 
@@ -78,7 +76,7 @@ func fetchRoutingInfo(c *gin.Context) {
 		RoutingInfo     map[int]partitionInfo `json:"routing_info"`
 	}
 
-	response.TotalPartitions = totalPartitions
+	response.TotalPartitions = internal.AppState.PartitionCount
 	response.RoutingInfo = routing
 
 
