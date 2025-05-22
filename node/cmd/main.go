@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"nabatdb/commons"
 	"nabatdb/node/api"
 	"nabatdb/node/internal"
 	"net"
@@ -11,17 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"github.com/joho/godotenv"
 )
-
-func initConfig() {
-	err := godotenv.Load()
-	if err != nil {
-		logrus.Fatalf("No .env file found or error loading it: %v", err)
-	}
-	viper.AutomaticEnv()
-	logrus.Infof("Log level set to: %s", viper.GetString("LOG_LEVEL"))
-}
 
 func getRandomPort() int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -52,7 +43,7 @@ func getAvailablePort() int {
 }
 
 func main() {
-	initConfig()
+	commons.InitConfig()
 
 	levelStr := viper.GetString("LOG_LEVEL")
 	level, err := logrus.ParseLevel(levelStr)

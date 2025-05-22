@@ -11,7 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var controllerAddr string = "localhost:8080"
+var controllerAddr string = "controller:8080"
 
 func SendNodeJoin(address string) (string, error) {
 	url := fmt.Sprintf("http://%s/node-join", controllerAddr)

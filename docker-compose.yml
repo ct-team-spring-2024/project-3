@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  controller:
+    build:
+      context: .
+      dockerfile: ./controller/Dockerfile
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=8080
+    networks:
+      - backend
+  node:
+    build:
+      context: .
+      dockerfile: ./node/Dockerfile
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=8080
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge

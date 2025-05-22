@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"io"
 
-	"github.com/joho/godotenv"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -23,14 +22,6 @@ var rootCmd = &cobra.Command{
 	Long:  `NabatDB provides a controller API and DB management utilities.`,
 }
 
-func initConfig(cmd *cobra.Command, args []string) {
-	err := godotenv.Load()
-	if err != nil {
-		logrus.Fatalf("No .env file found or error loading it: %v", err)
-	}
-	viper.AutomaticEnv()
-	logrus.Infof("Log level set to: %s", viper.GetString("LOG_LEVEL"))
-}
 
 func controllerFunc(cmd *cobra.Command, args []string) {
 	levelStr := viper.GetString("LOG_LEVEL")
@@ -88,7 +79,6 @@ func init() {
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "controller",
 		Short: "Start the NabatDB controller",
-		PreRun: initConfig,
 		Run: controllerFunc,
 	})
 	rootCmd.AddCommand(&cobra.Command{

@@ -2,6 +2,9 @@ package commons
 
 import (
 	"hash/fnv"
+	"github.com/joho/godotenv"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 func GetPartitionID(key string, totalPartitions int) int {
@@ -18,4 +21,13 @@ type PartitionInfo struct {
 type RoutingInfo struct {
 	TotalPartitions int                   `json:"total_partitions"`
 	RoutingInfo     map[int]PartitionInfo `json:"routing_info"`
+}
+
+func InitConfig() {
+	err := godotenv.Load()
+	if err != nil {
+		logrus.Warnf("No .env file found or error loading it: %v", err)
+	}
+	viper.AutomaticEnv()
+	logrus.Infof("Log level set to: %s", viper.GetString("LOG_LEVEL"))
 }
