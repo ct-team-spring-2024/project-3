@@ -5,10 +5,9 @@ RUN go env -w GOPROXY=https://goproxy.cn,direct
 RUN go mod download
 COPY . .
 RUN GOOS=linux GOARCH=amd64 CGO_ENABLED=0 \
-    go build -o /app/out ./controller/main.go
+    go build -o /app/out ./loadbalancer/cmd/main.go
 FROM alpine:latest AS final
-EXPOSE 8080
-COPY --from=builder /app/out /app/controller
+EXPOSE 8081
+COPY --from=builder /app/out /app/loadbalancer
 WORKDIR /app
-# CMD ["./controller", "controller"]
-CMD ["sh", "-c", "sleep 10 && ./controller nabat & ./controller controller"]
+CMD ["./loadbalancer"]

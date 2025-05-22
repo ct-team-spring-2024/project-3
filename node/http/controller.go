@@ -9,12 +9,12 @@ import (
 	"net/http"
 
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
-var controllerAddr string = "controller:8080"
 
 func SendNodeJoin(address string) (string, error) {
-	url := fmt.Sprintf("http://%s/node-join", controllerAddr)
+	url := fmt.Sprintf("http://%s/node-join", viper.GetString("CONTROLLER_ADDRESS"))
 
 	var requestBody struct {
 		Address string `json:"address"`
@@ -53,7 +53,7 @@ func SendNodeJoin(address string) (string, error) {
 }
 
 func FetchPartitionCount() int {
-	url := fmt.Sprintf("http://%s/fetch-routing-info", controllerAddr)
+	url := fmt.Sprintf("http://%s/fetch-routing-info", viper.GetString("CONTROLLER_ADDRESS"))
 	resp, _ := http.Get(url)
 	defer resp.Body.Close()
 	var result struct {

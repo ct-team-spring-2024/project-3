@@ -6,11 +6,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 
-	"nabatdb/loadbalancer/internal"
+	"nabatdb/commons"
 	"nabatdb/loadbalancer/api"
+	"nabatdb/loadbalancer/internal"
 )
 
 
@@ -42,12 +44,14 @@ func fetchRoutingData(client *http.Client, url string, routingData *internal.Rou
 }
 
 func main() {
+	commons.InitConfig()
 
 	client := &http.Client{
 		Timeout: time.Second * 5,
 	}
 
-	err := fetchRoutingData(client, "http://localhost:8080/fetch-routing-info", &internal.AppState)
+	fetchRoutingDataURL := fmt.Sprintf("http://%s/fetch-routing-info", viper.GetString("CONTROLLER_ADDRESS"))
+	err := fetchRoutingData(client, fetchRoutingDataURL, &internal.AppState)
 	if err != nil {
 		logrus.Fatalf("Failed to fetch initial routing data: %v", err)
 	}
@@ -59,7 +63,7 @@ func main() {
 
 		for {
 			<-ticker.C
-			err := fetchRoutingData(client, "http://localhost:8080/fetch-routing-info", &internal.AppState)
+			err := fetchRoutingData(client, fetchRoutingDataURL, &internal.AppState)
 			if err != nil {
 				logrus.Warnf("Failed to update routing data: %v", err)
 			} else {
@@ -71,7 +75,8 @@ func main() {
 
 	router := gin.Default()
 	api.SetupRoutes(router)
-	router.Run(":8081")
+	address := fmt.Sprintf(":%s", viper.GetString("PORT"))
+	router.Run(address)
 
 	select {} // Keep the main function running
 }

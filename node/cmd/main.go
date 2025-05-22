@@ -58,7 +58,9 @@ func main() {
 
 	port := getAvailablePort()
 	// TODO localhost should be the ip
-	address := fmt.Sprintf("%s:%d","localhost", port)
+	hostname := viper.GetString("HOSTNAME")
+	logrus.Infof("HORSE %s", hostname)
+	address := fmt.Sprintf("%s:%d", hostname, port)
 	internal.InitNode(address)
 
 	router := gin.Default()
