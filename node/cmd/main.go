@@ -10,7 +10,18 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
+	"github.com/joho/godotenv"
 )
+
+func initConfig() {
+	err := godotenv.Load()
+	if err != nil {
+		logrus.Fatalf("No .env file found or error loading it: %v", err)
+	}
+	viper.AutomaticEnv()
+	logrus.Infof("Log level set to: %s", viper.GetString("LOG_LEVEL"))
+}
 
 func getRandomPort() int {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -27,20 +38,28 @@ func isPortAvailable(port int) bool {
 }
 
 func getAvailablePort() int {
-	for i := 0; i < 100; i++ {
-		port := getRandomPort()
-		if isPortAvailable(port) {
-			return port
+	if viper.GetString("PORT") != "" {
+		return viper.GetInt("PORT")
+	} else {
+		for i := 0; i < 100; i++ {
+			port := getRandomPort()
+			if isPortAvailable(port) {
+				return port
+			}
 		}
 	}
-	ln, _ := net.Listen("tcp", ":0")
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
-	return port
+	panic("no port found")
 }
 
 func main() {
-	logrus.SetLevel(logrus.InfoLevel)
+	initConfig()
+
+	levelStr := viper.GetString("LOG_LEVEL")
+	level, err := logrus.ParseLevel(levelStr)
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	logrus.SetLevel(level)
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})

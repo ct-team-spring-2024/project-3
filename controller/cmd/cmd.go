@@ -7,13 +7,14 @@ import (
 
 	"fmt"
 	"os"
-	// "strconv"
 	"net/http"
 	"io"
 
+	"github.com/joho/godotenv"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var rootCmd = &cobra.Command{
@@ -22,64 +23,79 @@ var rootCmd = &cobra.Command{
 	Long:  `NabatDB provides a controller API and DB management utilities.`,
 }
 
-var controllerCmd = &cobra.Command{
-	Use:   "controller",
-	Short: "Start the NabatDB controller",
-	Run: func(cmd *cobra.Command, args []string) {
-		logrus.SetLevel(logrus.DebugLevel)
-		logrus.SetFormatter(&logrus.TextFormatter{
-			FullTimestamp: true,
-		})
-		logrus.Info("Starting: Controller")
-
-		internal.InitState()
-		// TODO: Mock new nodes
-		// MOCK
-		// for i := 0; i < 10; i++ {
-		//	port := 8081 + i
-		//	address := "localhost"
-		//	internal.NodeJoin(address, strconv.Itoa(port))
-		//	logrus.Infof("Node joined: %s:%d", address, port)
-		// }
-		// MOCK
-
-		router := gin.Default()
-		api.SetupRoutes(router)
-		router.Run(":8080")
-		fmt.Println("Controller started on :8080")
-
-	},
+func initConfig(cmd *cobra.Command, args []string) {
+	err := godotenv.Load()
+	if err != nil {
+		logrus.Fatalf("No .env file found or error loading it: %v", err)
+	}
+	viper.AutomaticEnv()
+	logrus.Infof("Log level set to: %s", viper.GetString("LOG_LEVEL"))
 }
 
-var nabatCmd = &cobra.Command{
-	Use:   "nabat",
-	Short: "Run Nabat DB",
-	Run: func(cmd *cobra.Command, args []string) {
-		url := "http://localhost:8080/start-db"
-		req, err := http.NewRequest("POST", url, nil)
-		if err != nil {
-			logrus.Fatalf("Failed to create HTTP request: %v", err)
-		}
+func controllerFunc(cmd *cobra.Command, args []string) {
+	levelStr := viper.GetString("LOG_LEVEL")
+	level, err := logrus.ParseLevel(levelStr)
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	logrus.SetLevel(level)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	logrus.Info("Starting: Controller")
 
-		client := &http.Client{}
-		resp, err := client.Do(req)
-		if err != nil {
-			logrus.Fatalf("Failed to send request to /start-db: %v", err)
-		}
-		defer resp.Body.Close()
+	internal.InitState()
+	// TODO: Mock new nodes
+	// MOCK
+	// for i := 0; i < 10; i++ {
+	//	port := 8081 + i
+	//	address := "localhost"
+	//	internal.NodeJoin(address, strconv.Itoa(port))
+	//	logrus.Infof("Node joined: %s:%d", address, port)
+	// }
+	// MOCK
 
-		body, _ := io.ReadAll(resp.Body)
-		if resp.StatusCode != http.StatusOK {
-			logrus.Fatalf("Failed to initialize DB via API: %d - %s", resp.StatusCode, body)
-		}
+	router := gin.Default()
+	api.SetupRoutes(router)
+	addr := fmt.Sprintf(":%s", viper.GetString("PORT"))
+	router.Run(addr)
+	fmt.Println("Controller started on :8080")
+}
 
-		fmt.Printf("DB Started: %s\n", body)
-	},
+func nabatFunc(cmd *cobra.Command, args []string) {
+	url := fmt.Sprintf("http://localhost:%s/start-db", viper.GetString("PORT"))
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		logrus.Fatalf("Failed to create HTTP request: %v", err)
+	}
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		logrus.Fatalf("Failed to send request to /start-db: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		logrus.Fatalf("Failed to initialize DB via API: %d - %s", resp.StatusCode, body)
+	}
+
+	fmt.Printf("DB Started: %s\n", body)
 }
 
 func init() {
-	rootCmd.AddCommand(controllerCmd)
-	rootCmd.AddCommand(nabatCmd)
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "controller",
+		Short: "Start the NabatDB controller",
+		PreRun: initConfig,
+		Run: controllerFunc,
+	})
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "nabat",
+		Short: "Run Nabat DB",
+		Run: nabatFunc,
+	})
 }
 
 func Execute() {
