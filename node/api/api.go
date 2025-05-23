@@ -16,7 +16,7 @@ func get(c *gin.Context) {
 		c.AbortWithStatusJSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	value , err := internal.Node.GetKey(requestBody.Key)
+	value, err := internal.Node.GetKey(requestBody.Key)
 	if err != nil {
 		c.AbortWithStatusJSON(404, gin.H{"error": err.Error()})
 		return
@@ -39,7 +39,7 @@ func set(c *gin.Context) {
 	logrus.Infof("#2")
 
 	// TODO process error
-	internal.Node.SetKey(requestBody.Key , []byte(requestBody.Value))
+	internal.Node.SetKey(requestBody.Key, []byte(requestBody.Value))
 	c.JSON(200, gin.H{"message": "Key-Value pair saved", "key": requestBody.Key})
 }
 
@@ -97,6 +97,26 @@ func setShardLeader(c *gin.Context) {
 
 	c.JSON(200, gin.H{"status": "Shard Leader set successfully", "shard_id": requestBody.ShardID})
 }
+func migrateShard(c *gin.Context) {
+
+	var requestBody struct {
+		OldShardID int `json:"old_shard_id"`
+		NewShardID int `json:"new_shard_id"`
+	}
+
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+	err := internal.Node.Migrate(requestBody.OldShardID , requestBody.NewShardID)
+	if err != nil {
+		c.JSON(500 , err.Error())
+		return
+
+	}
+	c.JSON(200 , gin.H{"status" : "Migration succesful."})
+
+}
 
 func checkHealth(c *gin.Context) {
 	logrus.Debugf("Health check requested")
@@ -111,4 +131,5 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/set-shard", setShard)
 	router.POST("/set-shard-leader", setShardLeader)
 	router.GET("/health", checkHealth)
+	router.POST("/migrate-shard", migrateShard)
 }
