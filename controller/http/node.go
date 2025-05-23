@@ -86,8 +86,36 @@ func AssignPartitionLeaderToNode(address string, pId int) error {
 	return nil
 }
 
-func CopyPartition(partitionId int, sourceAddress string, destinationAddress string) {
-	// TODO
+func CopyPartition(partitionId int, sourceAddress string, destinationAddress string) error {
+	return nil
+
+	url := fmt.Sprintf("http://%s/copy-shard", destinationAddress)
+
+	var requestBody struct {
+		PartitionID   int    `json:"partition_id"`
+		SourceAddress string `json:"source_address"`
+	}
+	requestBody.PartitionID = partitionId
+	requestBody.SourceAddress = sourceAddress
+
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("failed to marshal request body: %v", err)
+	}
+
+	// Send the POST request
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Check the response status code
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
 }
 
 func NodeMigrate(address string) error {
@@ -107,7 +135,6 @@ func NodeMigrate(address string) error {
 }
 
 func NodeRollback(address string) {
-
 }
 
 func StartHealthCheck(nodeId int, address string, port string, disconnetcHandler func(int)) {

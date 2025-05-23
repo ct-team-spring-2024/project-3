@@ -93,6 +93,10 @@ func (node *nabatNode) DeleteKey(key string) error {
 	return nil
 }
 
+func (node *nabatNode) CopyShard(partitionId int, sourceAddress string) {
+
+}
+
 func (node *nabatNode) Migrate() error {
 	node.Shards = node.NextShards
 	node.NextShards = make(map[int]*InMemorydb)
@@ -105,17 +109,10 @@ func (node *nabatNode) RollBack(shardId int) {
 	//It is not needed now
 }
 
-// If it is alive it will send true otherwise the controller will timeout
-func (node *nabatNode) IsAlive() bool {
-	return true
+func (node *nabatNode) GetDB(shardId int) map[string][]byte {
+	return node.Shards[shardId].GetDB()
 }
-func updateState() {
-	//Things this should do
-	//Read the logs and update the shards
-	//Send is Alive events back to controller
-	//Answer the set and get from controller
-	for {
 
-	}
-
+func (node *nabatNode) GetLogs(shardId int) []nodehttp.Op {
+	return node.Shards[shardId].Logs
 }

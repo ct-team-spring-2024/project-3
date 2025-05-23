@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"nabatdb/node/http"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Table map[string][]byte
@@ -69,4 +71,9 @@ func (db *InMemorydb) GetRemainingLogs() []http.Op {
 	result := db.Logs[db.LogIndex:]
 	db.LogIndex = len(db.Logs)
 	return result
+}
+
+func (db *InMemorydb) GetDB() map[string][]byte {
+	logrus.Infof("Table => %+v", db.Table)
+	return db.Table
 }
