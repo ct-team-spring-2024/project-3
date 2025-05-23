@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,6 +14,8 @@ import (
 type nabatNode struct {
 	ShardsRole       map[int]string
 	Shards           map[int]*InMemorydb
+	NextShardRole    map[int]string
+	NextShards       map[int]*InMemorydb
 	TotalPartitions  int
 	NodeAddress      string
 	RoutingInfo      *commons.RoutingInfo
@@ -32,6 +35,8 @@ func InitNode(nodeAddress string) {
 	Node = &nabatNode{
 		ShardsRole:       make(map[int]string),
 		Shards:           make(map[int]*InMemorydb),
+		NextShardRole:    make(map[int]string),
+		NextShards:       make(map[int]*InMemorydb),
 		TotalPartitions:  totalPartitions,
 		NodeAddress:      nodeAddress,
 		RoutingInfo:      &commons.RoutingInfo{},
@@ -46,15 +51,16 @@ func (node *nabatNode) GetShardsRoles() (map[int]string, error) {
 	return node.ShardsRole, nil
 }
 
-func (node *nabatNode) SetShard(shardNumber int) error {
-	Node.ShardsRole[shardNumber] = "follower"
-	Node.Shards[shardNumber] = InitDB()
+func (node *nabatNode) SetShard(shardNumber int ) error {
+	//This will wait until it is ready to be set by the migrate command
+	Node.NextShardRole[shardNumber] = "follower"
+	Node.NextShards[shardNumber] = InitDB()
 	// TODO get snapshots + WAL from leader
 	return nil
 }
 
 func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
-	Node.ShardsRole[shardNumber] = "leader"
+	Node.NextShardRole[shardNumber] = "leader"
 	return true, nil
 }
 
@@ -87,6 +93,20 @@ func (node *nabatNode) DeleteKey(key string) error {
 		nodehttp.BroadcastOp(node.ControllerClient, node.RoutingInfo, node.NodeAddress, ops)
 	}
 	return nil
+}
+
+func (node *nabatNode) Migrate(oldShardId int, newShardId int) error {
+	
+	 delete(Node.Shards , oldShardId)
+	 if _ , exists := Node.NextShards[newShardId] ; !exists {
+		return fmt.Errorf("the shard with id %v does not exist." , oldShardId)
+
+	 }
+	 node.Shards[newShardId] = node.NextShards[newShardId]
+	return nil
+}
+func (node *nabatNode) RollBack(shardId int){
+	//It is not needed now
 }
 
 // If it is alive it will send true otherwise the controller will timeout
