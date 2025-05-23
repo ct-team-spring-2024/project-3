@@ -86,6 +86,17 @@ func AssignPartitionLeaderToNode(address string, pId int) error {
 	return nil
 }
 
+func CopyPartition(partitionId int, sourceAddress string, destinationAddress string) {
+	// TODO
+}
+
+func NodeMigrate(address string) {
+}
+
+func NodeRollback(address string) {
+
+}
+
 func StartHealthCheck(nodeId int, address string, port string, disconnetcHandler func(int)) {
 	go func() {
 		ticker := time.NewTicker(5 * time.Second) // Check every 5 seconds
