@@ -1,33 +1,43 @@
 package internal
 
 import (
-	"fmt"
-	"nabatdb/commons"
-	"nabatdb/node/http"
+	"net/http"
+	"time"
 
 	"github.com/sirupsen/logrus"
+
+	"nabatdb/commons"
+	nodehttp "nabatdb/node/http"
 )
 
 type nabatNode struct {
-	ShardsRole  map[int]string
-	Shards      map[int]*InMemorydb
-	Rlog        []string
-	TotalPartitions int
+	ShardsRole       map[int]string
+	Shards           map[int]*InMemorydb
+	TotalPartitions  int
+	NodeAddress      string
+	RoutingInfo      *commons.RoutingInfo
+	ControllerClient *http.Client
 }
 
 var (
 	Node *nabatNode
 )
 
-func InitNode(address string) {
-	totalPartitions := http.FetchPartitionCount()
-	Node = &nabatNode{
-		ShardsRole:      make(map[int]string),
-		Shards:          make(map[int]*InMemorydb),
-		Rlog:            make([]string, 0),
-		TotalPartitions: totalPartitions,
+func InitNode(nodeAddress string) {
+	client := &http.Client{
+		Timeout: time.Second * 5,
 	}
-	nodeId, _ := http.SendNodeJoin(address)
+	totalPartitions := nodehttp.FetchPartitionCount(client)
+	nodeId, _ := nodehttp.SendNodeJoin(nodeAddress)
+	Node = &nabatNode{
+		ShardsRole:       make(map[int]string),
+		Shards:           make(map[int]*InMemorydb),
+		TotalPartitions:  totalPartitions,
+		NodeAddress:      nodeAddress,
+		RoutingInfo:      &commons.RoutingInfo{},
+		ControllerClient: client,
+	}
+	nodehttp.RoutingInfoUpdater(client, Node.RoutingInfo)
 
 	logrus.Infof("nodeId => %s", nodeId)
 }
@@ -48,9 +58,18 @@ func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
 	return true, nil
 }
 
+// 1. (DB) Write in WAL
+// 2. (DB) Write in Table
+// 3. (DB) if MaxSize Reached, create new Table and add to ROTables
+// 4. (Async) Send the change to other nodes
 func (node *nabatNode) SetKey(key string, value []byte) {
 	sId := commons.GetPartitionID(key, node.TotalPartitions)
-	Node.Shards[sId].Set(key, value)
+	node.Shards[sId].Set(key, value)
+	ops := node.Shards[sId].GetRemainingLogs()
+	logrus.Infof("ops => %+v", ops)
+	if node.ShardsRole[sId] == "leader" {
+		nodehttp.BroadcastOp(node.ControllerClient, node.RoutingInfo, node.NodeAddress, ops)
+	}
 }
 
 func (node *nabatNode) GetKey(key string) ([]byte, error) {
@@ -60,9 +79,12 @@ func (node *nabatNode) GetKey(key string) ([]byte, error) {
 }
 
 func (node *nabatNode) DeleteKey(key string) error {
-	ok, err := Node.Shards[0].Delete(key)
-	if !ok {
-		return fmt.Errorf("Error occured Deleting the key %v with error  %v \n", key, err)
+	sId := commons.GetPartitionID(key, node.TotalPartitions)
+	node.Shards[sId].Delete(key)
+	ops := node.Shards[sId].GetRemainingLogs()
+	logrus.Infof("ops => %+v", ops)
+	if node.ShardsRole[sId] == "leader" {
+		nodehttp.BroadcastOp(node.ControllerClient, node.RoutingInfo, node.NodeAddress, ops)
 	}
 	return nil
 }

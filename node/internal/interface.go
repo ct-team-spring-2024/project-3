@@ -1,10 +1,12 @@
 package internal
 
-// TODO : set which shards to keep , either in this or somewhere else
+import "nabatdb/node/http"
+
 type db interface {
 	Delete(key string) (bool, error)
 	Set(Key string, value []byte) error
 	Get(key string) ([]byte, error)
+	GetRemainingLogs() []http.Op
 }
 
 type node interface {
