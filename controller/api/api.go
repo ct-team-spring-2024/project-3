@@ -3,14 +3,14 @@ package api
 import (
 	"net/http"
 	"strings"
-	"fmt"
 
-	"github.com/sirupsen/logrus"
 	"github.com/gin-gonic/gin"
+	"github.com/sirupsen/logrus"
 
 	"nabatdb/controller/internal"
 )
 
+// Add a node. Also start a goroutine to check the health.
 func nodeJoin(c *gin.Context) {
 	var requestBody struct {
 		Address string `json:"address"`
@@ -43,48 +43,14 @@ func nodeJoin(c *gin.Context) {
 }
 
 func fetchRoutingInfo(c *gin.Context) {
-	// Fetch the partition nodes
-	partitionNodes := internal.GetPartitionNodes()
-	partitionLeaderNodes := internal.GetPartitionLeaderNodes()
-
-	type partitionInfo struct {
-		NodeAddresses []string `json:"node_addresses"`
-		LeaderAddress string   `json:"leader_address"`
-	}
-
-	routing := make(map[int]partitionInfo)
-
-	for pID, nodes := range partitionNodes {
-		leader, _ := internal.GetNode(partitionLeaderNodes[pID])
-		leaderAddress := fmt.Sprintf("%s:%s", leader.Address, leader.Port)
-
-		var addresses []string
-		for _, nodeID := range nodes {
-			node, _ := internal.GetNode(nodeID)
-			addresses = append(addresses, fmt.Sprintf("%s:%s", node.Address, node.Port))
-		}
-
-		routing[pID] = partitionInfo{
-			NodeAddresses: addresses,
-			LeaderAddress: leaderAddress,
-		}
-	}
-
-
-	var response struct {
-		TotalPartitions int                   `json:"total_partitions"`
-		RoutingInfo     map[int]partitionInfo `json:"routing_info"`
-	}
-
-	response.TotalPartitions = internal.AppState.PartitionCount
-	response.RoutingInfo = routing
-
-
+	response :=  internal.FetchRoutingInfo()
 	c.JSON(http.StatusOK, response)
 }
 
 func startDB(c *gin.Context) {
 	logrus.Info("Starting: NabatDB")
+
+	// 1- calculate the cluster topology + inform the nodes
 	internal.InitDB()
 
 	c.JSON(http.StatusOK, gin.H{
@@ -93,9 +59,6 @@ func startDB(c *gin.Context) {
 }
 
 func SetupRoutes(router *gin.Engine) {
-	// router.GET("/node-join", func(c *gin.Context) {
-	//	c.JSON(200, gin.H{"message": "Hello from another file!"})
-	// })
 	router.POST("/node-join", nodeJoin)
 	router.GET("/fetch-routing-info", fetchRoutingInfo)
 	router.POST("/start-db", startDB)

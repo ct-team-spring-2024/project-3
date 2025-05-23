@@ -63,7 +63,15 @@ func main() {
 	address := fmt.Sprintf("%s:%d", hostname, port)
 	internal.InitNode(address)
 
-	router := gin.Default()
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path == "/health" {
+			c.Next()
+			return
+		}
+		gin.Logger()(c)
+	})
+
 	api.SetupRoutes(router)
 	logrus.Infof("Starting server on port %d", port)
 

@@ -98,6 +98,11 @@ func setShardLeader(c *gin.Context) {
 	c.JSON(200, gin.H{"status": "Shard Leader set successfully", "shard_id": requestBody.ShardID})
 }
 
+func checkHealth(c *gin.Context) {
+	logrus.Debugf("Health check requested")
+	c.JSON(200, gin.H{"status": "OK"})
+}
+
 func SetupRoutes(router *gin.Engine) {
 	router.POST("/get", get)
 	router.POST("/set", set)
@@ -105,4 +110,5 @@ func SetupRoutes(router *gin.Engine) {
 
 	router.POST("/set-shard", setShard)
 	router.POST("/set-shard-leader", setShardLeader)
+	router.GET("/health", checkHealth)
 }

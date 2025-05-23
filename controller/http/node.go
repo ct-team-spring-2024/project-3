@@ -1,10 +1,13 @@
 package http
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"bytes"
+	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 func AssignPartitionToNode(address string, pId int) error {
@@ -81,4 +84,26 @@ func AssignPartitionLeaderToNode(address string, pId int) error {
 	}
 
 	return nil
+}
+
+func StartHealthCheck(nodeId int, address string, port string, disconnetcHandler func(int)) {
+	go func() {
+		ticker := time.NewTicker(5 * time.Second) // Check every 5 seconds
+		defer ticker.Stop()
+
+		healthURL := fmt.Sprintf("http://%s:%s/health", address, port)
+
+		for {
+			select {
+			case <-ticker.C:
+				resp, err := http.Get(healthURL)
+				if err != nil || resp.StatusCode != http.StatusOK {
+					logrus.Warnf("Node %d at %s:%s is unhealthy", nodeId, address, port)
+					disconnetcHandler(nodeId)
+				} else {
+					logrus.Debugf("Node %d at %s:%s is healthy", nodeId, address, port)
+				}
+			}
+		}
+	}()
 }
