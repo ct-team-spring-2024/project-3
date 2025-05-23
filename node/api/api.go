@@ -97,25 +97,15 @@ func setShardLeader(c *gin.Context) {
 
 	c.JSON(200, gin.H{"status": "Shard Leader set successfully", "shard_id": requestBody.ShardID})
 }
-func migrateShard(c *gin.Context) {
 
-	var requestBody struct {
-		OldShardID int `json:"old_shard_id"`
-		NewShardID int `json:"new_shard_id"`
-	}
-
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
-		return
-	}
-	err := internal.Node.Migrate(requestBody.OldShardID , requestBody.NewShardID)
+func migrate(c *gin.Context) {
+	err := internal.Node.Migrate()
 	if err != nil {
 		c.JSON(500 , err.Error())
 		return
 
 	}
 	c.JSON(200 , gin.H{"status" : "Migration succesful."})
-
 }
 
 func checkHealth(c *gin.Context) {
@@ -131,5 +121,5 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/set-shard", setShard)
 	router.POST("/set-shard-leader", setShardLeader)
 	router.GET("/health", checkHealth)
-	router.POST("/migrate-shard", migrateShard)
+	router.POST("/migrate", migrate)
 }

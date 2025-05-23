@@ -84,6 +84,10 @@ func InitDB() {
 		logrus.Infof("Assigning Leader of %d to %d (%s)", pId, nodeId, address)
 		http.AssignPartitionLeaderToNode(address, pId)
 	}
+	for _, node := range AppState.Nodes {
+		address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+		http.NodeMigrate(address)
+	}
 	AppState.DBStatus = Running
 	AppState.PartitionNodes = AppState.NextPartitionNodes
 	AppState.PartitionLeaderNodes = AppState.NextPartitionLeaderNodes
