@@ -22,14 +22,14 @@ type Node struct {
 type NodeStatus int
 
 const (
-	Healthy     NodeStatus = iota
+	Healthy NodeStatus = iota
 	Unhealthy
 )
 
 type DBStatus int
 
 const (
-	Init     DBStatus = iota
+	Init DBStatus = iota
 	Running
 	Updating
 )
@@ -52,17 +52,17 @@ type State struct {
 
 func InitState() {
 	AppState = &State{
-		DBStatus: Init,
-		Nodes: make([]Node, 0, 0),
-		NextNodeId: 0,
-		PartitionCount: 1,
-		ReplicationCount: 3,
-		ClusterSize: 0,
-		PartitionNodes: make(map[int][]int),
-		PartitionLeaderNodes: make(map[int]int),
-		NextPartitionNodes: make(map[int][]int),
+		DBStatus:                 Init,
+		Nodes:                    make([]Node, 0, 0),
+		NextNodeId:               0,
+		PartitionCount:           1,
+		ReplicationCount:         3,
+		ClusterSize:              0,
+		PartitionNodes:           make(map[int][]int),
+		PartitionLeaderNodes:     make(map[int]int),
+		NextPartitionNodes:       make(map[int][]int),
 		NextPartitionLeaderNodes: make(map[int]int),
-		NextActionTrigger: make(chan struct{}),
+		NextActionTrigger:        make(chan struct{}),
 	}
 }
 
@@ -90,42 +90,66 @@ func InitDB() {
 	AppState.NextPartitionNodes = make(map[int][]int)
 	AppState.NextPartitionLeaderNodes = make(map[int]int)
 	// Start the async handler for topology change
-	// go NextAction()
+	go NextAction()
+}
+
+func hasPartition(partitionNodesMap map[int][]int, nodeId int, partitionId int) bool {
+	for _, p := range partitionNodesMap[nodeId] {
+		if p == partitionId {
+			return true
+		}
+	}
+	return false
+}
+
+func getAddedPartitions(current map[int][]int, next map[int][]int) map[int][]int {
+	added := make(map[int][]int)
+
+	for nodeId, partitions := range next {
+		for _, p := range partitions {
+			if !hasPartition(current, nodeId, p) {
+				added[nodeId] = append(added[nodeId], p)
+			}
+		}
+	}
+
+	return added
+}
+
+func getRemovedPartitions(current map[int][]int, next map[int][]int) map[int][]int {
+	removed := make(map[int][]int)
+
+	for nodeId, partitions := range current {
+		for _, p := range partitions {
+			if !hasPartition(next, nodeId, p) {
+				removed[nodeId] = append(removed[nodeId], p)
+			}
+		}
+	}
+
+	return removed
 }
 
 func NextAction() {
-    for {
-	select {
-	case <-AppState.NextActionTrigger:
-	    logrus.Info("Received signal to trigger next action")
+	for {
+		select {
+		case <-AppState.NextActionTrigger:
+			logrus.Info("Received signal to trigger next action")
 
-	    nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
-	    for _, node := range AppState.Nodes {
-		for _, p := range nodePartitions[node.NodeId] {
-		    address := fmt.Sprintf("%s:%s", node.Address, node.Port)
-		    logrus.Infof("Assigning %d to %d (%s)", p, node.NodeId, address)
-		    http.AssignPartitionToNode(address, p)
+			// added := getAddedPartitions(AppState.PartitionNodes, AppState.NextPartitionNodes)
+			// removed := getRemovedPartitions(AppState.PartitionNodes, AppState.NextPartitionNodes)
+
+			// Update application state after processing the signal.
+			AppState.PartitionNodes = AppState.NextPartitionNodes
+			AppState.PartitionLeaderNodes = AppState.NextPartitionLeaderNodes
+			AppState.NextPartitionNodes = make(map[int][]int)
+			AppState.NextPartitionLeaderNodes = make(map[int]int)
+
+		default:
+			// Optional: Add a small delay to avoid busy waiting.
+			time.Sleep(100 * time.Millisecond)
 		}
-	    }
-
-	    for pId, nodeId := range AppState.NextPartitionLeaderNodes {
-		node, _ := getNode(nodeId)
-		address := fmt.Sprintf("%s:%s", node.Address, node.Port)
-		logrus.Infof("Assigning Leader of %d to %d (%s)", pId, nodeId, address)
-		http.AssignPartitionLeaderToNode(address, pId)
-	    }
-
-	    // Update application state after processing the signal.
-	    AppState.PartitionNodes = AppState.NextPartitionNodes
-	    AppState.PartitionLeaderNodes = AppState.NextPartitionLeaderNodes
-	    AppState.NextPartitionNodes = make(map[int][]int)
-	    AppState.NextPartitionLeaderNodes = make(map[int]int)
-
-	default:
-	    // Optional: Add a small delay to avoid busy waiting.
-	    time.Sleep(100 * time.Millisecond)
 	}
-    }
 }
 
 func NodeDisconnect(nodeId int) {
@@ -140,6 +164,7 @@ func NodeDisconnect(nodeId int) {
 	calculateNext()
 
 	logrus.Infof("After Disconnect => \n %+v \n %+v", AppState.NextPartitionNodes, AppState.NextPartitionLeaderNodes)
+	AppState.NextActionTrigger <- struct{}{}
 	// TODO Given the next, and the current, we will initiate a number of tasks:
 	// - Migrate: Telling the nodes to stop using the previous version
 	// - Rollback: Forget about the copy and everything. Stick to old data.
@@ -152,10 +177,10 @@ func NodeDisconnect(nodeId int) {
 func NodeJoin(address string, port string) string {
 	nodeId := AppState.NextNodeId
 	AppState.Nodes = append(AppState.Nodes, Node{
-		NodeId: AppState.NextNodeId,
+		NodeId:  AppState.NextNodeId,
 		Address: address,
-		Port: port,
-		Status: Healthy,
+		Port:    port,
+		Status:  Healthy,
 	})
 	AppState.NextNodeId++
 
@@ -190,7 +215,7 @@ func FetchRoutingInfo() commons.RoutingInfo {
 	}
 	return commons.RoutingInfo{
 		TotalPartitions: AppState.PartitionCount,
-		RoutingInfo: routing,
+		RoutingInfo:     routing,
 	}
 }
 
