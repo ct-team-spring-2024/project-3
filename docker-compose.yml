@@ -1,0 +1,69 @@
+version: '3.8'
+
+services:
+  controller:
+    build:
+      context: .
+      dockerfile: ./controller/Dockerfile
+    environment:
+      - LOG_LEVEL=debug
+      - PORT=8080
+    networks:
+      - backend
+  node1:
+    build:
+      context: .
+      dockerfile: ./node/Dockerfile
+    environment:
+      - LOG_LEVEL=debug
+      - CONTROLLER_ADDRESS=controller:8080
+      - HOSTNAME=node1
+      - PORT=8080
+    networks:
+      - backend
+    depends_on:
+      - controller
+  node2:
+    build:
+      context: .
+      dockerfile: ./node/Dockerfile
+    environment:
+      - LOG_LEVEL=debug
+      - CONTROLLER_ADDRESS=controller:8080
+      - HOSTNAME=node2
+      - PORT=8080
+    networks:
+      - backend
+    depends_on:
+      - controller
+  node3:
+    build:
+      context: .
+      dockerfile: ./node/Dockerfile
+    environment:
+      - LOG_LEVEL=debug
+      - CONTROLLER_ADDRESS=controller:8080
+      - HOSTNAME=node3
+      - PORT=8080
+    networks:
+      - backend
+    depends_on:
+      - controller
+  loadbalancer:
+    build:
+      context: .
+      dockerfile: ./loadbalancer/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - LOG_LEVEL=debug
+      - CONTROLLER_ADDRESS=controller:8080
+      - PORT=8080
+    networks:
+      - backend
+    depends_on:
+      - controller
+
+networks:
+  backend:
+    driver: bridge

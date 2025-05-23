@@ -1,15 +1,17 @@
 package main
 
 import (
-	"math/rand"
-	"time"
-	"net"
 	"fmt"
+	"math/rand"
+	"nabatdb/commons"
 	"nabatdb/node/api"
 	"nabatdb/node/internal"
+	"net"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 func getRandomPort() int {
@@ -27,31 +29,50 @@ func isPortAvailable(port int) bool {
 }
 
 func getAvailablePort() int {
-	for i := 0; i < 100; i++ {
-		port := getRandomPort()
-		if isPortAvailable(port) {
-			return port
+	if viper.GetString("PORT") != "" {
+		return viper.GetInt("PORT")
+	} else {
+		for i := 0; i < 100; i++ {
+			port := getRandomPort()
+			if isPortAvailable(port) {
+				return port
+			}
 		}
 	}
-	ln, _ := net.Listen("tcp", ":0")
-	port := ln.Addr().(*net.TCPAddr).Port
-	_ = ln.Close()
-	return port
+	panic("no port found")
 }
 
 func main() {
-	logrus.SetLevel(logrus.InfoLevel)
+	commons.InitConfig()
+
+	levelStr := viper.GetString("LOG_LEVEL")
+	level, err := logrus.ParseLevel(levelStr)
+	if err != nil {
+		level = logrus.InfoLevel
+	}
+	logrus.SetLevel(level)
 	logrus.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
 	logrus.Info("Starting: Node")
 
-	// TODO execute node-join
-	internal.InitNode()
-
-	router := gin.Default()
-	api.SetupRoutes(router)
 	port := getAvailablePort()
+	// TODO localhost should be the ip
+	hostname := viper.GetString("HOSTNAME")
+	logrus.Infof("HORSE %s", hostname)
+	address := fmt.Sprintf("%s:%d", hostname, port)
+	internal.InitNode(address)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path == "/health" {
+			c.Next()
+			return
+		}
+		gin.Logger()(c)
+	})
+
+	api.SetupRoutes(router)
 	logrus.Infof("Starting server on port %d", port)
 
 	if err := router.Run(fmt.Sprintf(":%d", port)); err != nil {

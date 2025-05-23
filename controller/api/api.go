@@ -1,14 +1,16 @@
 package api
 
 import (
-	"nabatdb/controller/internal"
 	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
+
+	"nabatdb/controller/internal"
 )
 
+// Add a node. Also start a goroutine to check the health.
 func nodeJoin(c *gin.Context) {
 	var requestBody struct {
 		Address string `json:"address"`
@@ -29,18 +31,35 @@ func nodeJoin(c *gin.Context) {
 	port := parts[1]
 
 	logrus.Infof("Address: %s, Port: %s", address, port)
-	internal.NodeJoin(address, port)
+	nodeId := internal.NodeJoin(address, port)
 
+	logrus.Info("#3")
 	c.JSON(http.StatusOK, gin.H{
+		"node_id": nodeId,
 		"message": "Received and processed successfully",
 		"address": address,
 		"port":    port,
 	})
 }
 
+func fetchRoutingInfo(c *gin.Context) {
+	response :=  internal.FetchRoutingInfo()
+	c.JSON(http.StatusOK, response)
+}
+
+func startDB(c *gin.Context) {
+	logrus.Info("Starting: NabatDB")
+
+	// 1- calculate the cluster topology + inform the nodes
+	internal.InitDB()
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Database initialized successfully",
+	})
+}
+
 func SetupRoutes(router *gin.Engine) {
-	// router.GET("/node-join", func(c *gin.Context) {
-	//	c.JSON(200, gin.H{"message": "Hello from another file!"})
-	// })
 	router.POST("/node-join", nodeJoin)
+	router.GET("/fetch-routing-info", fetchRoutingInfo)
+	router.POST("/start-db", startDB)
 }
