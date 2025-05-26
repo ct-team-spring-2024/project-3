@@ -51,16 +51,19 @@ func (node *nabatNode) GetShardsRoles() (map[int]string, error) {
 	return node.ShardsRole, nil
 }
 
-func (node *nabatNode) SetShard(shardNumber int ) error {
+func (node *nabatNode) SetShard(shardNumber int) error {
 	//This will wait until it is ready to be set by the migrate command
 	Node.NextShardRole[shardNumber] = "follower"
 	Node.NextShards[shardNumber] = InitDB()
+	Node.Shards[0] = InitDB()
+
 	// TODO get snapshots + WAL from leader
 	return nil
 }
 
 func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
 	Node.NextShardRole[shardNumber] = "leader"
+	Node.ShardsRole[shardNumber] = "leader"
 	return true, nil
 }
 
@@ -69,11 +72,13 @@ func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
 // 3. (DB) if MaxSize Reached, create new Table and add to ROTables
 // 4. (Async) Send the change to other nodes
 func (node *nabatNode) SetKey(key string, value []byte) {
+	logrus.Infof("the Set request was sent")
 	sId := commons.GetPartitionID(key, node.TotalPartitions)
 	node.Shards[sId].Set(key, value)
 	ops := node.Shards[sId].GetRemainingLogs()
 	logrus.Infof("ops => %+v", ops)
 	if node.ShardsRole[sId] == "leader" {
+		logrus.Infof("the Set request was sent")
 		nodehttp.BroadcastOp(node.ControllerClient, node.RoutingInfo, node.NodeAddress, ops)
 	}
 }
@@ -96,16 +101,16 @@ func (node *nabatNode) DeleteKey(key string) error {
 }
 
 func (node *nabatNode) Migrate(oldShardId int, newShardId int) error {
-	
-	 delete(Node.Shards , oldShardId)
-	 if _ , exists := Node.NextShards[newShardId] ; !exists {
-		return fmt.Errorf("the shard with id %v does not exist." , oldShardId)
 
-	 }
-	 node.Shards[newShardId] = node.NextShards[newShardId]
+	delete(Node.Shards, oldShardId)
+	if _, exists := Node.NextShards[newShardId]; !exists {
+		return fmt.Errorf("the shard with id %v does not exist.", oldShardId)
+
+	}
+	node.Shards[newShardId] = node.NextShards[newShardId]
 	return nil
 }
-func (node *nabatNode) RollBack(shardId int){
+func (node *nabatNode) RollBack(shardId int) {
 	//It is not needed now
 }
 

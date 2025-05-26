@@ -5,8 +5,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func main() {
-	client, err := nabatdbclient.Connect("http://localhost:8081")
+func main(){
+	client, err := nabatdbclient.Connect("http://localhost:37361")
 	if err != nil {
 		logrus.Fatal(err)
 	}
