@@ -36,10 +36,10 @@ func set(c *gin.Context) {
 		c.AbortWithStatusJSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	logrus.Infof("#2")
-
 	// TODO process error
+	logrus.Infof("Came here")
 	internal.Node.SetKey(requestBody.Key, []byte(requestBody.Value))
+	logrus.Infof("Came here 2")
 	c.JSON(200, gin.H{"message": "Key-Value pair saved", "key": requestBody.Key})
 }
 
@@ -97,15 +97,27 @@ func setShardLeader(c *gin.Context) {
 
 	c.JSON(200, gin.H{"status": "Shard Leader set successfully", "shard_id": requestBody.ShardID})
 }
+ Next-Shard
+	var requestBody struct {
+		OldShardID int `json:"old_shard_id"`
+		NewShardID int `json:"new_shard_id"`
+	}
 
-func migrate(c *gin.Context) {
-	err := internal.Node.Migrate()
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+	err := internal.Node.Migrate(requestBody.OldShardID, requestBody.NewShardID)
+
 	if err != nil {
-		c.JSON(500 , err.Error())
+		c.JSON(500, err.Error())
 		return
 
 	}
-	c.JSON(200 , gin.H{"status" : "Migration succesful."})
+ Next-Shard
+	c.JSON(200, gin.H{"status": "Migration succesful."})
+
+
 }
 
 func checkHealth(c *gin.Context) {
