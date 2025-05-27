@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -58,6 +57,7 @@ func (node *nabatNode) SetShard(shardNumber int) error {
 	Node.Shards[0] = InitDB()
 
 	// TODO get snapshots + WAL from leader
+
 	return nil
 }
 
@@ -100,14 +100,12 @@ func (node *nabatNode) DeleteKey(key string) error {
 	return nil
 }
 
-func (node *nabatNode) Migrate(oldShardId int, newShardId int) error {
 
-	delete(Node.Shards, oldShardId)
-	if _, exists := Node.NextShards[newShardId]; !exists {
-		return fmt.Errorf("the shard with id %v does not exist.", oldShardId)
-
-	}
-	node.Shards[newShardId] = node.NextShards[newShardId]
+func (node *nabatNode) Migrate() error {
+	node.Shards = node.NextShards
+	node.NextShards = make(map[int]*InMemorydb)
+	node.ShardsRole = node.NextShardRole
+	node.NextShardRole = make(map[int]string)
 	return nil
 }
 func (node *nabatNode) RollBack(shardId int) {

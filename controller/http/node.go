@@ -86,6 +86,30 @@ func AssignPartitionLeaderToNode(address string, pId int) error {
 	return nil
 }
 
+func CopyPartition(partitionId int, sourceAddress string, destinationAddress string) {
+	// TODO
+}
+
+func NodeMigrate(address string) error {
+	url := fmt.Sprintf("http://%s/migrate", address)
+
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
+func NodeRollback(address string) {
+
+}
+
 func StartHealthCheck(nodeId int, address string, port string, disconnetcHandler func(int)) {
 	go func() {
 		ticker := time.NewTicker(5 * time.Second) // Check every 5 seconds

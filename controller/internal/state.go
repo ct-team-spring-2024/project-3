@@ -55,8 +55,8 @@ func InitState() {
 		DBStatus:                 Init,
 		Nodes:                    make([]Node, 0, 0),
 		NextNodeId:               0,
-		PartitionCount:           1,
-		ReplicationCount:         3,
+		PartitionCount:           2,
+		ReplicationCount:         2,
 		ClusterSize:              0,
 		PartitionNodes:           make(map[int][]int),
 		PartitionLeaderNodes:     make(map[int]int),
@@ -84,6 +84,10 @@ func InitDB() {
 		logrus.Infof("Assigning Leader of %d to %d (%s)", pId, nodeId, address)
 		http.AssignPartitionLeaderToNode(address, pId)
 	}
+	for _, node := range AppState.Nodes {
+		address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+		http.NodeMigrate(address)
+	}
 	AppState.DBStatus = Running
 	AppState.PartitionNodes = AppState.NextPartitionNodes
 	AppState.PartitionLeaderNodes = AppState.NextPartitionLeaderNodes
@@ -102,7 +106,7 @@ func hasPartition(partitionNodesMap map[int][]int, nodeId int, partitionId int) 
 	return false
 }
 
-func getAddedPartitions(current map[int][]int, next map[int][]int) map[int][]int {
+func getAddedNodePartitions(current map[int][]int, next map[int][]int) map[int][]int {
 	added := make(map[int][]int)
 
 	for nodeId, partitions := range next {
@@ -116,35 +120,121 @@ func getAddedPartitions(current map[int][]int, next map[int][]int) map[int][]int
 	return added
 }
 
-func getRemovedPartitions(current map[int][]int, next map[int][]int) map[int][]int {
-	removed := make(map[int][]int)
+func getSourceNodes() map[int]int {
+	sourceNodes := make(map[int]int)
 
-	for nodeId, partitions := range current {
-		for _, p := range partitions {
-			if !hasPartition(next, nodeId, p) {
-				removed[nodeId] = append(removed[nodeId], p)
+	for partitionID, currentLeaderID := range AppState.PartitionLeaderNodes {
+		// Check if current leader is healthy
+		node, _ := getNode(currentLeaderID)
+		if node.Status == Healthy {
+			sourceNodes[partitionID] = currentLeaderID
+			continue
+		}
+
+		// Current leader is unhealthy; find a replacement from PartitionNodes
+		for _, candidateNodeID := range AppState.PartitionNodes[partitionID] {
+			node, _ := getNode(candidateNodeID)
+			if node.Status == Healthy {
+				sourceNodes[partitionID] = candidateNodeID
+				break
 			}
 		}
 	}
 
-	return removed
+	return sourceNodes
 }
 
+// func getRemovedPartitions(current map[int][]int, next map[int][]int) map[int][]int {
+//	removed := make(map[int][]int)
+
+//	for nodeId, partitions := range current {
+//		for _, p := range partitions {
+//			if !hasPartition(next, nodeId, p) {
+//				removed[nodeId] = append(removed[nodeId], p)
+//			}
+//		}
+//	}
+
+//	return removed
+// }
+
 func NextAction() {
+OuterLoop:
 	for {
 		select {
 		case <-AppState.NextActionTrigger:
+			RollbackHandler := func() {
+				// Calling Rollback on all the nodes!
+				logrus.Infof("FallbackHandler is called")
+				for _, node := range AppState.Nodes {
+					if node.Status == Healthy {
+						address := commons.GetAddress(node.Address, node.Port)
+						logrus.Infof("NodeRollback called: node %d", node.NodeId)
+						http.NodeRollback(address)
+					}
+				}
+			}
+
 			logrus.Info("Received signal to trigger next action")
+			// Assign Partitions for Next
+			nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
+			for _, node := range AppState.Nodes {
+				for _, p := range nodePartitions[node.NodeId] {
+					address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+					logrus.Infof("Assigning %d to %d (%s)", p, node.NodeId, address)
+					http.AssignPartitionToNode(address, p)
+				}
+			}
+			// Assign Leaders for Next
+			// TODO: don't assign new Leader if previous leader is healthy
+			for pId, nodeId := range AppState.NextPartitionLeaderNodes {
+				node, _ := getNode(nodeId)
+				address := fmt.Sprintf("%s:%s", node.Address, node.Port)
+				logrus.Infof("Assigning Leader of %d to %d (%s)", pId, nodeId, address)
+				http.AssignPartitionLeaderToNode(address, pId)
+			}
+			// GetCopy Requests for fresh partitions on nodes
+			logrus.Infof("PPP %+v", AppState.PartitionNodes)
+			addedNodePartitions := getAddedNodePartitions(
+				getNodePartitions(AppState.PartitionNodes),
+				getNodePartitions(AppState.NextPartitionNodes))
+			sourceNodes := getSourceNodes()
+			logrus.Infof("addedNodePartitions => %+v", addedNodePartitions)
+			logrus.Infof("sourceNode => %+v", sourceNodes)
+			for node, partitions := range addedNodePartitions {
+				for _, partition := range partitions {
+					sourceNode, ok := sourceNodes[partition]
+					if ok {
+						logrus.Infof("CopyPartition called: partitionId %d - sourcenode %d - destinationnode %d",
+							partition, sourceNode, node)
+						sn, _ := getNode(sourceNode)
+						n, _ := getNode(node)
+						http.CopyPartition(partition,
+							commons.GetAddress(sn.Address, sn.Port),
+							commons.GetAddress(n.Address, n.Port),
+						)
+					} else {
+						logrus.Infof("XXX %+v %+v", node, partitions)
+						RollbackHandler()
+						continue OuterLoop
+					}
+				}
+			}
 
-			// added := getAddedPartitions(AppState.PartitionNodes, AppState.NextPartitionNodes)
-			// removed := getRemovedPartitions(AppState.PartitionNodes, AppState.NextPartitionNodes)
-
+			// Calling Migrate on all the nodes!
+			for _, node := range AppState.Nodes {
+				if node.Status == Healthy {
+					address := commons.GetAddress(node.Address, node.Port)
+					logrus.Infof("NodeMigrate called: node %d", node.NodeId)
+					http.NodeMigrate(address)
+				}
+			}
 			// Update application state after processing the signal.
 			AppState.PartitionNodes = AppState.NextPartitionNodes
 			AppState.PartitionLeaderNodes = AppState.NextPartitionLeaderNodes
 			AppState.NextPartitionNodes = make(map[int][]int)
 			AppState.NextPartitionLeaderNodes = make(map[int]int)
-
+			AppState.DBStatus = Running
 		default:
 			// Optional: Add a small delay to avoid busy waiting.
 			time.Sleep(100 * time.Millisecond)
@@ -276,6 +366,11 @@ func calculateNext() {
 		AppState.NextPartitionNodes[k] = v
 	}
 
+	AppState.NextPartitionLeaderNodes = make(map[int]int)
+	for k, v := range AppState.PartitionLeaderNodes {
+		AppState.NextPartitionLeaderNodes[k] = v
+	}
+
 	// 1. TODO Delete extra replicas (replicas from dead nodes,
 	//                                replicas which are extra,
 	//                                replicas from overloaded nodes)
@@ -340,7 +435,21 @@ func calculateNext() {
 			fmt.Printf("Partition %d has no nodes assigned\n", pId)
 			continue
 		}
-		// Pick a random node as leader
+		// check if previous leader is OK
+		nodeId, ok := AppState.NextPartitionLeaderNodes[pId]
+		if ok {
+			node, _ := getNode(nodeId)
+			found := false
+			for _, n := range nodes {
+				if n == node.NodeId {
+					found = true
+				}
+			}
+			if found {
+				continue
+			}
+		}
+		// else: Pick a random node as leader
 		leader := nodes[rand.Intn(len(nodes))]
 		logrus.Infof("Partition %d: Random leader selected -> %d\n", pId, leader)
 		AppState.NextPartitionLeaderNodes[pId] = leader

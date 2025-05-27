@@ -1,7 +1,9 @@
 package commons
 
 import (
+	"fmt"
 	"hash/fnv"
+
 	"github.com/joho/godotenv"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -30,4 +32,8 @@ func InitConfig() {
 	}
 	viper.AutomaticEnv()
 	logrus.Infof("Log level set to: %s", viper.GetString("LOG_LEVEL"))
+}
+
+func GetAddress(hostname string, port string) string {
+	return fmt.Sprintf("%s:%s", hostname, port)
 }
