@@ -36,9 +36,6 @@ func set(c *gin.Context) {
 		c.AbortWithStatusJSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	logrus.Infof("#2")
-	logrus.Infof("Came hereeeeeeeeeee")
-
 	// TODO process error
 	logrus.Infof("Came here")
 	internal.Node.SetKey(requestBody.Key, []byte(requestBody.Value))
