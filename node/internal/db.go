@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/sirupsen/logrus"
+	nodehttp "nabatdb/node/http"
 )
 
 type Table map[string][]byte
@@ -46,7 +47,8 @@ func (db *InMemorydb) Set(key string, value []byte) error {
 	defer db.mu.Unlock()
 	logrus.Infof("the set request was also added to shard")
 
-	op := http.ConsSetOp(key, value)
+	op := http.ConsSetOp(key, value , db.LogIndex) 
+	db.LogIndex++
 	db.Logs = append(db.Logs, op)
 	n := db.Table.searchNode(db.Table.Root, key)
 	if n == db.Table.nilNode {
@@ -78,6 +80,34 @@ func (db *InMemorydb) Delete(key string) (bool, error) {
 	// delete(db.Table, key)
 
 	return true, nil
+}
+func (db *InMemorydb) GetLogs(lastLogIndex int) ([]http.Op , error){
+	db.mu.RLock()
+	defer db.mu.RUnlock()
+
+	if lastLogIndex >= len(db.Logs) {
+		return nil , fmt.Errorf("Error the last log is %v" , db.LogIndex)
+	}
+	result := db.Logs[lastLogIndex:]
+	db.LogIndex = len(db.Logs)
+	return result , nil
+
+}
+func (db *InMemorydb) ExecuteLog(op nodehttp.Op) error {
+	if op.OpType == nodehttp.Set {
+		setOp , ok := op.OpValue.(nodehttp.SetOpValue)
+		if !ok {
+			return fmt.Errorf("Error executing log")
+		}
+		err := db.Set(setOp.Key , setOp.Value)
+		if err != nil {
+			logrus.Error("Error executing log")
+			return err
+		}
+
+
+	}
+	return nil
 }
 
 func (db *InMemorydb) GetRemainingLogs() []http.Op {

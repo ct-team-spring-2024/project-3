@@ -45,7 +45,7 @@ type State struct {
 	ClusterSize              int
 	PartitionNodes           map[int][]int
 	PartitionLeaderNodes     map[int]int
-	NextPartitionNodes       map[int][]int // the topology that the system must diverg to
+	NextPartitionNodes       map[int][]int // the topology that the system must converge to
 	NextPartitionLeaderNodes map[int]int
 	NextActionTrigger        chan struct{}
 }

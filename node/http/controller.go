@@ -24,6 +24,7 @@ const (
 type OpValue interface{}
 
 type Op struct {
+	OpId    int
 	OpType  OpType
 	OpValue OpValue
 }
@@ -48,8 +49,9 @@ func getKeyFromOp(op Op) string {
 	}
 }
 
-func ConsSetOp(key string, value []byte) Op {
+func ConsSetOp(key string, value []byte, id int) Op {
 	return Op{
+		OpId: id,
 		OpType: Set,
 		OpValue: SetOpValue{
 			Key:   key,
@@ -106,6 +108,7 @@ func SendNodeJoin(address string) (string, error) {
 	return responseBody.NodeID, nil
 }
 
+// fetches
 func FetchRoutingInfo(client *http.Client, routingInfo *commons.RoutingInfo) error {
 	url := fmt.Sprintf("http://%s/fetch-routing-info", viper.GetString("CONTROLLER_ADDRESS"))
 	resp, err := client.Get(url)
@@ -172,10 +175,13 @@ func sendOpToNode(client *http.Client, nodeAddr string, op Op) error {
 		bodyData, err = json.Marshal(struct {
 			Key   string `json:"key"`
 			Value string `json:"value"`
+			Id    int    `json:"id"`
 		}{
 			Key:   setVal.Key,
 			Value: string(setVal.Value),
+			Id: op.OpId,
 		})
+		//TODO : Deletes must be handled differently than sets .
 	case Del:
 		endpoint = "/delete"
 		delVal, ok := op.OpValue.(DelOpValue)
@@ -235,6 +241,7 @@ func BroadcastOp(client *http.Client, routingInfo *commons.RoutingInfo, nodeAddr
 
 				// Send the op to the remote node
 				err := sendOpToNode(client, addr, op)
+				logrus.Infof("Sent the write operation to the other nodes")
 				if err != nil {
 					logrus.WithError(err).Warnf("Failed to propagate op to node %s", addr)
 					continue
@@ -242,4 +249,34 @@ func BroadcastOp(client *http.Client, routingInfo *commons.RoutingInfo, nodeAddr
 			}
 		}
 	}()
+}
+
+func GetLogsFromLeaderByIndex(leaderUrl string , index , Shard_Id int)( []Op , error){
+	bodyData, _ := json.Marshal(struct {
+			Id int 	`json:"Id"`
+			ShardId int `json:"Shard_Id"`
+		}{
+			Id : index,
+			ShardId: Shard_Id,
+		})
+		req , err := http.NewRequest("GET" , leaderUrl , bytes.NewBuffer(bodyData))
+		if err != nil {
+			 logrus.Errorf("Error creating a new http request %v" , err )
+		}
+		client := &http.Client{}
+		resp , err := client.Do(req)
+		
+		if err != nil {
+			logrus.Errorf("Error sending the http request to the leader : %v" , err )
+		}
+		defer resp.Body.Close()
+		var result struct{
+			Ops []Op `json:"logs"`
+
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return result.Ops , nil
+
 }

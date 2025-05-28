@@ -1,4 +1,4 @@
-version: '3.8'
+
 
 services:
   controller:
@@ -19,6 +19,8 @@ services:
       - CONTROLLER_ADDRESS=controller:8080
       - HOSTNAME=node1
       - PORT=8080
+    ports:
+      - "8081:8080"
     networks:
       - backend
     depends_on:
@@ -32,6 +34,8 @@ services:
       - CONTROLLER_ADDRESS=controller:8080
       - HOSTNAME=node2
       - PORT=8080
+    ports:
+      - "8082:8080"
     networks:
       - backend
     depends_on:
@@ -45,6 +49,8 @@ services:
       - CONTROLLER_ADDRESS=controller:8080
       - HOSTNAME=node3
       - PORT=8080
+    ports:
+      - "8083:8080"
     networks:
       - backend
     depends_on:
@@ -54,7 +60,7 @@ services:
       context: .
       dockerfile: ./loadbalancer/Dockerfile
     ports:
-      - "8080:8080"
+      - "8090:8081"
     environment:
       - LOG_LEVEL=debug
       - CONTROLLER_ADDRESS=controller:8080

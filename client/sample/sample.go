@@ -6,7 +6,7 @@ import (
 )
 
 func main(){
-	client, err := nabatdbclient.Connect("http://localhost:37361")
+	client, err := nabatdbclient.Connect("http://localhost:8082")
 	if err != nil {
 		logrus.Fatal(err)
 	}
@@ -27,8 +27,8 @@ func main(){
 		logrus.Println("Got value:", val)
 	}
 
-	// Delete
-	if err := client.Delete(key); err != nil {
-		logrus.Println("Delete failed:", err)
-	}
+	// // Delete
+	// if err := client.Delete(key); err != nil {
+	// 	logrus.Println("Delete failed:", err)
+	// }
 }

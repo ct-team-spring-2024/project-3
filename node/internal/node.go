@@ -78,9 +78,47 @@ func (node *nabatNode) SetKey(key string, value []byte) {
 	ops := node.Shards[sId].GetRemainingLogs()
 	logrus.Infof("ops => %+v", ops)
 	if node.ShardsRole[sId] == "leader" {
-		logrus.Infof("the Set request was sent")
+		logrus.Infof("the Set request was sent to follower replicas")
 		nodehttp.BroadcastOp(node.ControllerClient, node.RoutingInfo, node.NodeAddress, ops)
 	}
+}
+
+func (node *nabatNode) GetAllLogsFrom(partitionId int, lastLogIndex int) ([]nodehttp.Op, error) {
+	shard := node.Shards[partitionId]
+	logs, err := shard.GetLogs(lastLogIndex)
+	if err != nil {
+		return nil, err
+	}
+	return logs, nil
+}
+
+func (node *nabatNode) GetLogsFromLeader() error {
+	for k := range node.Shards {
+		leaderAddress := node.RoutingInfo.RoutingInfo[k].LeaderAddress
+		//Check if itself is not the leader
+		url := leaderAddress + "/getlogs"
+
+		go exectuteLogsForShards(url, node, k)
+
+	}
+
+	return nil
+}
+func exectuteLogsForShards(url string, node *nabatNode, shardId int) error {
+	logs, err := nodehttp.GetLogsFromLeaderByIndex(url, 0 , shardId)
+
+	for _, v := range logs {
+		log := nodehttp.Op{
+			OpId:    v.OpId,
+			OpType:  v.OpType,
+			OpValue: v.OpValue,
+		}
+
+		node.Shards[shardId].ExecuteLog(log)
+
+	}
+	logrus.Errorf("Error executing logs for shard number %v", shardId)
+	return err
 }
 
 func (node *nabatNode) GetKey(key string) ([]byte, error) {
@@ -99,7 +137,6 @@ func (node *nabatNode) DeleteKey(key string) error {
 	}
 	return nil
 }
-
 
 func (node *nabatNode) Migrate() error {
 	node.Shards = node.NextShards
