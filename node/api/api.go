@@ -96,24 +96,21 @@ func setShardLeader(c *gin.Context) {
 
 	c.JSON(200, gin.H{"status": "Shard Leader set successfully", "shard_id": requestBody.ShardID})
 }
+
 func getLogs(c *gin.Context) {
 	var requestBody struct {
-		Id      int `json:"Id"`
-		ShardId int `json:"Shard_Id"`
+		Id      int `json:"id"`
+		ShardId int `json:"shard_id"`
 	}
 	if err := c.ShouldBindJSON(&requestBody); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	logs, err := internal.Node.GetAllLogsFrom(requestBody.ShardId, requestBody.Id)
-	if err != nil {
-		logrus.Error(err)
-		c.JSON(500, gin.H{"error": err})
-	}
-	 //Todo : send logs to the node
-	 c.JSON(200, gin.H{"logs": logs})
-
+	logs := internal.Node.GetAllLogsFrom(requestBody.ShardId, requestBody.Id)
+	// TODO send logs to the node
+	c.JSON(200, gin.H{"logs": logs})
 }
+
 func migrate(c *gin.Context) {
 	err := internal.Node.Migrate()
 	if err != nil {
@@ -140,6 +137,6 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/set-shard", setShard)
 	router.POST("/set-shard-leader", setShardLeader)
 	router.GET("/health", checkHealth)
-	router.GET("/getlogs" , getLogs)
+	router.GET("/getlogs", getLogs)
 	router.POST("/migrate", migrate)
 }

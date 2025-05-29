@@ -82,13 +82,10 @@ func (node *nabatNode) SetKey(key string, value []byte) {
 	}
 }
 
-func (node *nabatNode) GetAllLogsFrom(partitionId int, lastLogIndex int) ([]nodehttp.Op, error) {
+func (node *nabatNode) GetAllLogsFrom(partitionId int, lastLogIndex int) []nodehttp.Op {
 	shard := node.Shards[partitionId]
-	logs, err := shard.GetLogs(lastLogIndex)
-	if err != nil {
-		return nil, err
-	}
-	return logs, nil
+	logs := shard.GetLogs(lastLogIndex)
+	return logs
 }
 
 func (node *nabatNode) GetLogsFromLeader() error {
@@ -103,6 +100,7 @@ func (node *nabatNode) GetLogsFromLeader() error {
 
 	return nil
 }
+
 func exectuteLogsForShards(url string, node *nabatNode, shardId int) error {
 	logs, err := nodehttp.GetLogsFromLeaderByIndex(url, 0 , shardId)
 
@@ -151,14 +149,4 @@ func (node *nabatNode) RollBack(shardId int) {
 // If it is alive it will send true otherwise the controller will timeout
 func (node *nabatNode) IsAlive() bool {
 	return true
-}
-func updateState() {
-	//Things this should do
-	//Read the logs and update the shards
-	//Send is Alive events back to controller
-	//Answer the set and get from controller
-	for {
-
-	}
-
 }

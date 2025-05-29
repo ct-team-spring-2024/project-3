@@ -81,18 +81,19 @@ func (db *InMemorydb) Delete(key string) (bool, error) {
 
 	return true, nil
 }
-func (db *InMemorydb) GetLogs(lastLogIndex int) ([]http.Op , error){
+
+func (db *InMemorydb) GetLogs(lastLogIndex int) []http.Op {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
 
 	if lastLogIndex >= len(db.Logs) {
-		return nil , fmt.Errorf("Error the last log is %v" , db.LogIndex)
+		return nil
 	}
 	result := db.Logs[lastLogIndex:]
 	db.LogIndex = len(db.Logs)
-	return result , nil
-
+	return result
 }
+
 func (db *InMemorydb) ExecuteLog(op nodehttp.Op) error {
 	if op.OpType == nodehttp.Set {
 		setOp , ok := op.OpValue.(nodehttp.SetOpValue)
