@@ -51,7 +51,7 @@ func getKeyFromOp(op Op) string {
 
 func ConsSetOp(key string, value []byte, id int) Op {
 	return Op{
-		OpId: id,
+		OpId:   id,
 		OpType: Set,
 		OpValue: SetOpValue{
 			Key:   key,
@@ -179,7 +179,7 @@ func sendOpToNode(client *http.Client, nodeAddr string, op Op) error {
 		}{
 			Key:   setVal.Key,
 			Value: string(setVal.Value),
-			Id: op.OpId,
+			Id:    op.OpId,
 		})
 		//TODO : Deletes must be handled differently than sets .
 	case Del:
@@ -251,32 +251,35 @@ func BroadcastOp(client *http.Client, routingInfo *commons.RoutingInfo, nodeAddr
 	}()
 }
 
-func GetLogsFromLeaderByIndex(leaderUrl string , index , Shard_Id int)( []Op , error){
-	bodyData, _ := json.Marshal(struct {
-			Id int 	`json:"Id"`
-			ShardId int `json:"Shard_Id"`
-		}{
-			Id : index,
-			ShardId: Shard_Id,
-		})
-		req , err := http.NewRequest("GET" , leaderUrl , bytes.NewBuffer(bodyData))
-		if err != nil {
-			 logrus.Errorf("Error creating a new http request %v" , err )
-		}
-		client := &http.Client{}
-		resp , err := client.Do(req)
-		
-		if err != nil {
-			logrus.Errorf("Error sending the http request to the leader : %v" , err )
-		}
-		defer resp.Body.Close()
-		var result struct{
-			Ops []Op `json:"logs"`
+func UpdatePartitionLogIndex(client *http.Client, shardId int, logIndex int) {
 
-		}
-		if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+}
+
+func GetLogsFromLeaderByIndex(leaderUrl string, index, Shard_Id int) ([]Op, error) {
+	bodyData, _ := json.Marshal(struct {
+		Id      int `json:"Id"`
+		ShardId int `json:"Shard_Id"`
+	}{
+		Id:      index,
+		ShardId: Shard_Id,
+	})
+	req, err := http.NewRequest("GET", leaderUrl, bytes.NewBuffer(bodyData))
+	if err != nil {
+		logrus.Errorf("Error creating a new http request %v", err)
+	}
+	client := &http.Client{}
+	resp, err := client.Do(req)
+
+	if err != nil {
+		logrus.Errorf("Error sending the http request to the leader : %v", err)
+	}
+	defer resp.Body.Close()
+	var result struct {
+		Ops []Op `json:"logs"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
-	return result.Ops , nil
+	return result.Ops, nil
 
 }

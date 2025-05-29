@@ -42,7 +42,8 @@ func (db *InMemorydb) Get(key string) ([]byte, error) {
 	return value.Pair.Value, nil
 }
 
-func (db *InMemorydb) Set(key string, value []byte) error {
+// returns the log index + error
+func (db *InMemorydb) Set(key string, value []byte) (int, error) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	logrus.Infof("the set request was also added to shard")
@@ -57,7 +58,7 @@ func (db *InMemorydb) Set(key string, value []byte) error {
 		if db.TableSize > db.maximumKey {
 			//Create a new table
 		}
-		return nil
+		return db.LogIndex, nil
 	}
 	db.Table.Update(key, value)
 
@@ -65,7 +66,7 @@ func (db *InMemorydb) Set(key string, value []byte) error {
 		//Create a new table
 	}
 
-	return nil
+	return db.LogIndex, nil
 }
 
 func (db *InMemorydb) Delete(key string) (bool, error) {
@@ -100,7 +101,7 @@ func (db *InMemorydb) ExecuteLog(op nodehttp.Op) error {
 		if !ok {
 			return fmt.Errorf("Error executing log")
 		}
-		err := db.Set(setOp.Key , setOp.Value)
+		_, err := db.Set(setOp.Key , setOp.Value)
 		if err != nil {
 			logrus.Error("Error executing log")
 			return err
