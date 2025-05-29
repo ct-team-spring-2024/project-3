@@ -48,7 +48,7 @@ func (db *InMemorydb) Set(key string, value []byte) error {
 	logrus.Infof("the set request was also added to shard")
 
 	op := http.ConsSetOp(key, value , db.LogIndex) 
-	//db.LogIndex++
+	db.LogIndex++
 	db.Logs = append(db.Logs, op)
 	n := db.Table.searchNode(db.Table.Root, key)
 	if n == db.Table.nilNode {
