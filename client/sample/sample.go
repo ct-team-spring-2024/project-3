@@ -6,18 +6,18 @@ import (
 )
 
 func main(){
-	client, err := nabatdbclient.Connect("http://localhost:8082")
+	client, err := nabatdbclient.Connect("http://localhost:80")
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
 	key := "mykey"
-	value := "myvalue"
+	//value := "myvalue"
 
-	// Set
-	if err := client.Set(key, value); err != nil {
-		logrus.Println("Set failed:", err)
-	}
+	// // Set
+	// if err := client.Set(key, value); err != nil {
+	// 	logrus.Println("Set failed:", err)
+	// }
 
 	// Get
 	val, err := client.Get(key)

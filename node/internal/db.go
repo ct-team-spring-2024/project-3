@@ -27,7 +27,7 @@ func InitDB() *InMemorydb {
 		Table:    NewRBTree(),
 		ROTables: make([][]Pair, 0, 0),
 		Logs:     make([]http.Op, 0, 0),
-		LogIndex: 0,
+		LogIndex: 1,
 	}
 }
 
@@ -48,7 +48,7 @@ func (db *InMemorydb) Set(key string, value []byte) error {
 	logrus.Infof("the set request was also added to shard")
 
 	op := http.ConsSetOp(key, value , db.LogIndex) 
-	db.LogIndex++
+	//db.LogIndex++
 	db.Logs = append(db.Logs, op)
 	n := db.Table.searchNode(db.Table.Root, key)
 	if n == db.Table.nilNode {
@@ -113,12 +113,7 @@ func (db *InMemorydb) ExecuteLog(op nodehttp.Op) error {
 func (db *InMemorydb) GetRemainingLogs() []http.Op {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-
-	if db.LogIndex == len(db.Logs) {
-		return nil
-	}
-	result := db.Logs[db.LogIndex:]
-	db.LogIndex = len(db.Logs)
+	result := db.Logs[db.LogIndex - 1:]
 	return result
 }
 func (db *InMemorydb) FlushDB() {

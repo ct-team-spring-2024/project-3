@@ -64,7 +64,7 @@ services:
     environment:
       - LOG_LEVEL=debug
       - CONTROLLER_ADDRESS=controller:8080
-      - PORT=8080
+      - PORT=8081
     networks:
       - backend
     depends_on:

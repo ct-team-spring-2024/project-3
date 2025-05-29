@@ -54,7 +54,7 @@ func (node *nabatNode) SetShard(shardNumber int) error {
 	//This will wait until it is ready to be set by the migrate command
 	Node.NextShardRole[shardNumber] = "follower"
 	Node.NextShards[shardNumber] = InitDB()
-	Node.Shards[0] = InitDB()
+
 
 	// TODO get snapshots + WAL from leader
 
@@ -63,7 +63,6 @@ func (node *nabatNode) SetShard(shardNumber int) error {
 
 func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
 	Node.NextShardRole[shardNumber] = "leader"
-	Node.ShardsRole[shardNumber] = "leader"
 	return true, nil
 }
 
