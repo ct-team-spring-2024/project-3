@@ -219,9 +219,9 @@ func sendOpToNode(client *http.Client, nodeAddr string, op Op) error {
 	return nil
 }
 
+// TODO Broadcast for next & current
 func BroadcastOp(client *http.Client, routingInfo *commons.RoutingInfo, nodeAddress string, ops []Op) {
 	go func() {
-		// return
 		for _, op := range ops {
 			key := getKeyFromOp(op)
 			if key == "" {

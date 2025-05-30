@@ -57,7 +57,6 @@ func main() {
 	logrus.Info("Starting: Node")
 
 	port := getAvailablePort()
-	// TODO localhost should be the ip
 	hostname := viper.GetString("HOSTNAME")
 	logrus.Infof("HORSE %s", hostname)
 	address := fmt.Sprintf("%s:%d", hostname, port)

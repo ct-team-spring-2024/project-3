@@ -51,12 +51,10 @@ func (node *nabatNode) GetShardsRoles() (map[int]string, error) {
 }
 
 func (node *nabatNode) SetShard(shardNumber int) error {
-	//This will wait until it is ready to be set by the migrate command
+	// This will wait until it is ready to be set by the migrate command
 	Node.NextShardRole[shardNumber] = "follower"
 	Node.NextShards[shardNumber] = InitDB()
 
-
-	// TODO get snapshots + WAL from leader
 
 	return nil
 }
