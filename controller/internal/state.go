@@ -45,7 +45,6 @@ type State struct {
 	ClusterSize              int
 	PartitionNodes           map[int][]int
 	PartitionLeaderNodes     map[int]int
-	PartitionLogIndexes      map[int]int
 	NextPartitionNodes       map[int][]int // the topology that the system must converge to
 	NextPartitionLeaderNodes map[int]int
 	NextActionTrigger        chan struct{}
@@ -61,7 +60,6 @@ func InitState() {
 		ClusterSize:              0,
 		PartitionNodes:           make(map[int][]int),
 		PartitionLeaderNodes:     make(map[int]int),
-		PartitionLogIndexes:      make(map[int]int),
 		NextPartitionNodes:       make(map[int][]int),
 		NextPartitionLeaderNodes: make(map[int]int),
 		NextActionTrigger:        make(chan struct{}),
@@ -295,10 +293,6 @@ func FetchRoutingInfo() commons.RoutingInfo {
 		TotalPartitions: AppState.PartitionCount,
 		RoutingInfo:     routing,
 	}
-}
-
-func UpdatePartitionLogIndex(partitionId int, logIndex int) {
-	AppState.PartitionLogIndexes[partitionId] = logIndex
 }
 
 // Utils

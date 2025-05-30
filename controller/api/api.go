@@ -47,26 +47,6 @@ func fetchRoutingInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-
-func updatePartitionLogIndex(c *gin.Context) {
-	var requestBody struct {
-		PartitionId int `json:"partition_id"`
-		LogIndex    int `json:"log_index"`
-	}
-
-	if err := c.ShouldBindJSON(&requestBody); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	internal.UpdatePartitionLogIndex(requestBody.PartitionId, requestBody.LogIndex)
-
-	logrus.Info("#3")
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Received and processed successfully",
-	})
-}
-
 func startDB(c *gin.Context) {
 	logrus.Info("Starting: NabatDB")
 
@@ -81,6 +61,5 @@ func startDB(c *gin.Context) {
 func SetupRoutes(router *gin.Engine) {
 	router.POST("/node-join", nodeJoin)
 	router.GET("/fetch-routing-info", fetchRoutingInfo)
-	router.POST("/update-partition-log-indexes", updatePartitionLogIndex)
 	router.POST("/start-db", startDB)
 }

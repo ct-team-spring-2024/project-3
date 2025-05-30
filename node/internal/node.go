@@ -73,13 +73,12 @@ func (node *nabatNode) SetShardLeader(shardNumber int) (bool, error) {
 func (node *nabatNode) SetKey(key string, value []byte) {
 	logrus.Infof("the Set request was sent")
 	sId := commons.GetPartitionID(key, node.TotalPartitions)
-	logIndex, _ := node.Shards[sId].Set(key, value)
+	node.Shards[sId].Set(key, value)
 	ops := node.Shards[sId].GetRemainingLogs()
 	logrus.Infof("ops => %+v", ops)
 	if node.ShardsRole[sId] == "leader" {
 		logrus.Infof("the Set request was sent to follower replicas")
 		nodehttp.BroadcastOp(node.ControllerClient, node.RoutingInfo, node.NodeAddress, ops)
-		nodehttp.UpdatePartitionLogIndex(node.ControllerClient, sId, logIndex)
 	}
 }
 

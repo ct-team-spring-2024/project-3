@@ -251,10 +251,6 @@ func BroadcastOp(client *http.Client, routingInfo *commons.RoutingInfo, nodeAddr
 	}()
 }
 
-func UpdatePartitionLogIndex(client *http.Client, shardId int, logIndex int) {
-
-}
-
 func GetLogsFromLeaderByIndex(leaderUrl string, index, Shard_Id int) ([]Op, error) {
 	bodyData, _ := json.Marshal(struct {
 		Id      int `json:"Id"`
