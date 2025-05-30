@@ -112,7 +112,15 @@ func getLogs(c *gin.Context) {
 }
 
 func syncNextShards(c *gin.Context) {
-	internal.Node.SyncNextShards()
+	var requestBody struct {
+		SourceAddress string `json:"source_address"`
+		ShardId       int    `json:"shard_id"`
+	}
+	if err := c.ShouldBindJSON(&requestBody); err != nil {
+		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+	internal.Node.SyncNextShards(requestBody.SourceAddress, requestBody.ShardId)
 	c.JSON(200, gin.H{"message": "next shards are updated."})
 }
 

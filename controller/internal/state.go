@@ -191,11 +191,11 @@ OuterLoop:
 				for _, partition := range partitions {
 					sourceNode, ok := sourceNodes[partition]
 					if ok {
-						logrus.Infof("CopyPartition called: partitionId %d - sourcenode %d - destinationnode %d",
+						logrus.Infof("SyncNextPartition called: partitionId %d - sourcenode %d - destinationnode %d",
 							partition, sourceNode, node)
 						sn, _ := getNode(sourceNode)
 						n, _ := getNode(node)
-						http.CopyPartition(partition,
+						http.SyncNextPartition(partition,
 							commons.GetAddress(sn.Address, sn.Port),
 							commons.GetAddress(n.Address, n.Port),
 						)
@@ -208,13 +208,13 @@ OuterLoop:
 			}
 
 			// Calling Migrate on all the nodes!
-			for _, node := range AppState.Nodes {
-				if node.Status == Healthy {
-					address := commons.GetAddress(node.Address, node.Port)
-					logrus.Infof("NodeSyncNext called: node %d", node.NodeId)
-					http.NodeSyncNext(address)
-				}
-			}
+			// for _, node := range AppState.Nodes {
+			//	if node.Status == Healthy {
+			//		address := commons.GetAddress(node.Address, node.Port)
+			//		logrus.Infof("NodeSyncNext called: node %d", node.NodeId)
+			//		http.NodeSyncNext(address)
+			//	}
+			// }
 			for _, node := range AppState.Nodes {
 				if node.Status == Healthy {
 					address := commons.GetAddress(node.Address, node.Port)
@@ -371,7 +371,7 @@ func removeFromNextOverloadedNodes() {
 		return
 	}
 
-	idealReplicasPerNode := (totalPartitions * replicationFactor) / clusterSize + 1
+	idealReplicasPerNode := (totalPartitions*replicationFactor)/clusterSize + 1
 	nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
 
 	for _, node := range AppState.Nodes {

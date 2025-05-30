@@ -66,11 +66,8 @@ func AssignPartitionLeaderToNode(address string, pId int) error {
 	if err != nil {
 		return fmt.Errorf("failed to create HTTP request: %w", err)
 	}
-
-	// Set the Content-Type header
 	req.Header.Set("Content-Type", "application/json")
 
-	// Send the request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -86,25 +83,52 @@ func AssignPartitionLeaderToNode(address string, pId int) error {
 	return nil
 }
 
-func CopyPartition(partitionId int, sourceAddress string, destinationAddress string) {
-	// TODO
-}
+func SyncNextPartition(partitionId int, sourceAddress string, destinationAddress string) error {
+	var requestBody struct {
+		SourceAddress string `json:"source_address"`
+		ShardId       int    `json:"shard_id"`
+	}
+	requestBody.SourceAddress = sourceAddress
+	requestBody.ShardId = partitionId
 
-func NodeSyncNext(address string) error {
-	url := fmt.Sprintf("http://%s/sync-next-shards", address)
-
-	resp, err := http.Post(url, "application/json", nil)
+	jsonData, err := json.Marshal(requestBody)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to marshal request body: %w", err)
+	}
+
+	url := fmt.Sprintf("http://%s/sync-next-shards", destinationAddress)
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send HTTP request: %w", err)
 	}
 	defer resp.Body.Close()
 
+	// Check response status code
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
 
 	return nil
 }
+
+// func NodeSyncNext(address string) error {
+//	url := fmt.Sprintf("http://%s/sync-next-shards", address)
+
+//	resp, err := http.Post(url, "application/json", nil)
+//	if err != nil {
+//		return err
+//	}
+//	defer resp.Body.Close()
+
+//	if resp.StatusCode != http.StatusOK {
+//		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+//	}
+
+//	return nil
+// }
 
 func NodeMigrate(address string) error {
 	url := fmt.Sprintf("http://%s/migrate", address)

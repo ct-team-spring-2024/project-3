@@ -98,22 +98,23 @@ func (node *nabatNode) GetShardLogsFrom(partitionId int, lastLogIndex int) []nod
 //	return nil
 // }
 
-func (node *nabatNode) SyncNextShards() {
-	for k := range node.TotalPartitions {
-		leaderAddress := node.RoutingInfo.RoutingInfo[k].LeaderAddress
-		if leaderAddress == ""  {
-			logrus.Errorf("leader not found for partition %d", k)
-			continue
-		}
-		if leaderAddress == node.NodeAddress {
-			logrus.Error("Leader is this node. Updating locally.")
-			node.NextShards[k] = node.Shards[k]
-			continue
-		}
-
-		url := "http://" + leaderAddress + "/getlogs"
-		executeLogsForShards(url, node.NextShards, k)
-	}
+func (node *nabatNode) SyncNextShards(sourceAddress string, shardId int) {
+	// for k := range node.TotalPartitions {
+	//	leaderAddress := node.RoutingInfo.RoutingInfo[k].LeaderAddress
+	//	if leaderAddress == ""  {
+	//		logrus.Errorf("leader not found for partition %d", k)
+	//		continue
+	//	}
+	//	if leaderAddress == node.NodeAddress {
+	//		logrus.Error("Leader is this node. Updating locally.")
+	//		node.NextShards[k] = node.Shards[k]
+	//		continue
+	//	}
+	//	url := "http://" + leaderAddress + "/getlogs"
+	//	executeLogsForShards(url, node.NextShards, k)
+	// }
+	url := "http://" + sourceAddress + "/getlogs"
+	executeLogsForShards(url, node.NextShards, shardId)
 }
 
 func (node *nabatNode) SyncShards() {
@@ -161,12 +162,23 @@ func (node *nabatNode) DeleteKey(key string) error {
 	return nil
 }
 
-// 2. Swap current Shards with NextShards
+// Swap current Shards with NextShards
+// If in next shards, there is a shard in current, copy that locally.
 func (node *nabatNode) Migrate() error {
+	// if a nextshard was present, just move it to current.
+	oldShards := node.Shards
+	oldShardsRole := node.ShardsRole
 	node.Shards = node.NextShards
 	node.NextShards = make(map[int]*InMemorydb)
 	node.ShardsRole = node.NextShardRole
 	node.NextShardRole = make(map[int]string)
+	for shardID := range oldShardsRole {
+		if _, exists := node.ShardsRole[shardID]; exists {
+			logrus.Infof("Reusing shard %d", shardID)
+			node.Shards[shardID] = oldShards[shardID]
+		}
+	}
+
 	return nil
 }
 
