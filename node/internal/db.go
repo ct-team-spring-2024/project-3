@@ -48,7 +48,7 @@ func (db *InMemorydb) Set(key string, value []byte) (int, error) {
 	defer db.mu.Unlock()
 	logrus.Infof("the set request was also added to shard")
 
-	op := http.ConsSetOp(key, value , db.LogIndex)
+	op := http.ConsSetOp(key, value, db.LogIndex)
 	db.LogIndex++
 	db.Logs = append(db.Logs, op)
 	n := db.Table.searchNode(db.Table.Root, key)
@@ -97,17 +97,17 @@ func (db *InMemorydb) GetLogs(lastLogIndex int) []http.Op {
 
 func (db *InMemorydb) ExecuteLog(op nodehttp.Op) error {
 	if op.OpType == nodehttp.Set {
-		setOp , ok := op.OpValue.(nodehttp.SetOpValue)
+		setOp, ok := op.OpValue.(nodehttp.SetOpValue)
 		if !ok {
+			logrus.Errorf("#1")
 			return fmt.Errorf("Error executing log")
 		}
-		_, err := db.Set(setOp.Key , setOp.Value)
+		logrus.Info("OKKKK")
+		_, err := db.Set(setOp.Key, setOp.Value)
 		if err != nil {
-			logrus.Error("Error executing log")
+			logrus.Errorf("#2")
 			return err
 		}
-
-
 	}
 	return nil
 }
@@ -115,7 +115,7 @@ func (db *InMemorydb) ExecuteLog(op nodehttp.Op) error {
 func (db *InMemorydb) GetRemainingLogs() []http.Op {
 	db.mu.RLock()
 	defer db.mu.RUnlock()
-	result := db.Logs[db.LogIndex - 1:]
+	result := db.Logs[db.LogIndex-1:]
 	return result
 }
 func (db *InMemorydb) FlushDB() {

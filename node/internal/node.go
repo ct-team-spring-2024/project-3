@@ -42,6 +42,7 @@ func InitNode(nodeAddress string) {
 		ControllerClient: client,
 	}
 	nodehttp.RoutingInfoUpdater(client, Node.RoutingInfo)
+	ShardsUpdater()
 
 	logrus.Infof("nodeId => %s", nodeId)
 }
@@ -54,7 +55,6 @@ func (node *nabatNode) SetShard(shardNumber int) error {
 	// This will wait until it is ready to be set by the migrate command
 	Node.NextShardRole[shardNumber] = "follower"
 	Node.NextShards[shardNumber] = InitDB()
-
 
 	return nil
 }
@@ -80,39 +80,67 @@ func (node *nabatNode) SetKey(key string, value []byte) {
 	}
 }
 
-func (node *nabatNode) GetAllLogsFrom(partitionId int, lastLogIndex int) []nodehttp.Op {
+func (node *nabatNode) GetShardLogsFrom(partitionId int, lastLogIndex int) []nodehttp.Op {
 	shard := node.Shards[partitionId]
 	logs := shard.GetLogs(lastLogIndex)
 	return logs
 }
 
-func (node *nabatNode) GetLogsFromLeader() error {
-	for k := range node.Shards {
+// func (node *nabatNode) GetLogsFromLeader() error {
+//	for k := range node.Shards {
+//		leaderAddress := node.RoutingInfo.RoutingInfo[k].LeaderAddress
+//		//Check if itself is not the leader
+//		url := leaderAddress + "/getlogs"
+
+//		go exectuteLogsForShards(url, node, k)
+//	}
+
+//	return nil
+// }
+
+func (node *nabatNode) SyncNextShards() {
+	for k := range node.TotalPartitions {
 		leaderAddress := node.RoutingInfo.RoutingInfo[k].LeaderAddress
-		//Check if itself is not the leader
-		url := leaderAddress + "/getlogs"
+		if leaderAddress == ""  {
+			logrus.Errorf("leader not found for partition %d", k)
+			continue
+		}
+		if leaderAddress == node.NodeAddress {
+			logrus.Error("Leader is this node. Updating locally.")
+			node.NextShards[k] = node.Shards[k]
+			continue
+		}
 
-		go exectuteLogsForShards(url, node, k)
-
+		url := "http://" + leaderAddress + "/getlogs"
+		executeLogsForShards(url, node.NextShards, k)
 	}
-
-	return nil
 }
 
-func exectuteLogsForShards(url string, node *nabatNode, shardId int) error {
-	logs, err := nodehttp.GetLogsFromLeaderByIndex(url, 0 , shardId)
+func (node *nabatNode) SyncShards() {
 
+}
+
+func ShardsUpdater() {
+	go func() {
+	}()
+}
+
+func executeLogsForShards(url string, shards map[int]*InMemorydb, shardId int) error {
+	logs, err := nodehttp.GetLogsFromLeaderByIndex(url, 0, shardId)
+	if err != nil {
+		logrus.Errorf("Error executing logs for shard number %v", shardId)
+	}
+	logrus.Infof("logs => %+v", logs)
+	logrus.Infof("url shardId => %+v %+v", url, shardId)
 	for _, v := range logs {
 		log := nodehttp.Op{
 			OpId:    v.OpId,
 			OpType:  v.OpType,
 			OpValue: v.OpValue,
 		}
-
-		node.Shards[shardId].ExecuteLog(log)
-
+		logrus.Infof("single log => %+v %d", log, shardId)
+		shards[shardId].ExecuteLog(log)
 	}
-	logrus.Errorf("Error executing logs for shard number %v", shardId)
 	return err
 }
 
@@ -133,6 +161,7 @@ func (node *nabatNode) DeleteKey(key string) error {
 	return nil
 }
 
+// 2. Swap current Shards with NextShards
 func (node *nabatNode) Migrate() error {
 	node.Shards = node.NextShards
 	node.NextShards = make(map[int]*InMemorydb)
@@ -140,8 +169,10 @@ func (node *nabatNode) Migrate() error {
 	node.NextShardRole = make(map[int]string)
 	return nil
 }
+
 func (node *nabatNode) RollBack(shardId int) {
-	//It is not needed now
+	node.NextShards = make(map[int]*InMemorydb)
+	node.NextShardRole = make(map[int]string)
 }
 
 // If it is alive it will send true otherwise the controller will timeout

@@ -55,8 +55,8 @@ func InitState() {
 		DBStatus:                 Init,
 		Nodes:                    make([]Node, 0, 0),
 		NextNodeId:               0,
-		PartitionCount:           2,
-		ReplicationCount:         2,
+		PartitionCount:           1,
+		ReplicationCount:         4,
 		ClusterSize:              0,
 		PartitionNodes:           make(map[int][]int),
 		PartitionLeaderNodes:     make(map[int]int),
@@ -211,6 +211,13 @@ OuterLoop:
 			for _, node := range AppState.Nodes {
 				if node.Status == Healthy {
 					address := commons.GetAddress(node.Address, node.Port)
+					logrus.Infof("NodeSyncNext called: node %d", node.NodeId)
+					http.NodeSyncNext(address)
+				}
+			}
+			for _, node := range AppState.Nodes {
+				if node.Status == Healthy {
+					address := commons.GetAddress(node.Address, node.Port)
 					logrus.Infof("NodeMigrate called: node %d", node.NodeId)
 					http.NodeMigrate(address)
 				}
@@ -251,16 +258,26 @@ func NodeDisconnect(nodeId int) {
 
 // TODO The reliving of a unhealthy node
 func NodeJoin(address string, port string) string {
+	oldState := AppState.DBStatus
+	if oldState != Init {
+		AppState.DBStatus = Updating
+	}
+
 	nodeId := AppState.NextNodeId
-	AppState.Nodes = append(AppState.Nodes, Node{
-		NodeId:  AppState.NextNodeId,
+	node := Node{
+		NodeId:  nodeId,
 		Address: address,
 		Port:    port,
 		Status:  Healthy,
-	})
+	}
+	AppState.Nodes = append(AppState.Nodes, node)
 	AppState.NextNodeId++
-
 	http.StartHealthCheck(nodeId, address, port, NodeDisconnect)
+
+	if oldState != Init {
+		calculateNext()
+		AppState.NextActionTrigger <- struct{}{}
+	}
 
 	return strconv.Itoa(nodeId)
 }
@@ -345,6 +362,54 @@ func deleteFromNextNodes(nodeId int) {
 	AppState.NextPartitionLeaderNodes = newNextPartitionLeaderNodes
 }
 
+func removeFromNextOverloadedNodes() {
+	totalPartitions := AppState.PartitionCount
+	replicationFactor := AppState.ReplicationCount
+	clusterSize := AppState.ClusterSize
+
+	if clusterSize == 0 {
+		return
+	}
+
+	idealReplicasPerNode := (totalPartitions * replicationFactor) / clusterSize + 1
+	nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
+
+	for _, node := range AppState.Nodes {
+		nodeId := node.NodeId
+		currentReplicaCount := len(nodePartitions[nodeId])
+
+		if node.Status != Healthy || currentReplicaCount <= idealReplicasPerNode {
+			continue
+		}
+
+		excess := currentReplicaCount - idealReplicasPerNode
+
+		var removablePartitions []int
+		for _, pId := range nodePartitions[nodeId] {
+			if AppState.NextPartitionLeaderNodes[pId] != nodeId {
+				removablePartitions = append(removablePartitions, pId)
+			}
+		}
+
+		// Remove replicas until excess is gone
+		for _, pId := range removablePartitions {
+			if excess <= 0 {
+				break
+			}
+			nodes := AppState.NextPartitionNodes[pId]
+			newNodes := []int{}
+			for _, id := range nodes {
+				if id == nodeId {
+					excess--
+					continue
+				}
+				newNodes = append(newNodes, id)
+			}
+			AppState.NextPartitionNodes[pId] = newNodes
+		}
+	}
+}
+
 func calculateNext() {
 	// 0. First copy the current partitions to the new one
 	AppState.NextPartitionNodes = make(map[int][]int)
@@ -360,7 +425,7 @@ func calculateNext() {
 	// 1. TODO Delete extra replicas (replicas from dead nodes,
 	//                                replicas which are extra,
 	//                                replicas from overloaded nodes)
-	// Dead nodes
+	// replicas from dead nodes
 	nodePartitions := getNodePartitions(AppState.NextPartitionNodes)
 	for _, node := range AppState.Nodes {
 		if len(nodePartitions[node.NodeId]) == 0 {
@@ -370,6 +435,9 @@ func calculateNext() {
 			deleteFromNextNodes(node.NodeId)
 		}
 	}
+	// replicas from overloaded nodes (more than ceil of shardcount * replication / node count)
+	// * only delete non-leader replicas
+	removeFromNextOverloadedNodes()
 
 	// 2. Add replicas
 	for pId := 0; pId < AppState.PartitionCount; pId++ {

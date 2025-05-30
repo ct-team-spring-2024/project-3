@@ -45,8 +45,15 @@ func controllerFunc(cmd *cobra.Command, args []string) {
 	//	logrus.Infof("Node joined: %s:%d", address, port)
 	// }
 	// MOCK
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		if c.Request.URL.Path == "/fetch-routing-info" {
+			c.Next()
+			return
+		}
+		gin.Logger()(c)
+	})
 
-	router := gin.Default()
 	api.SetupRoutes(router)
 	addr := fmt.Sprintf(":%s", viper.GetString("PORT"))
 	router.Run(addr)

@@ -38,6 +38,39 @@ type DelOpValue struct {
 	Key string
 }
 
+func (op *Op) UnmarshalJSON(data []byte) error {
+	type Alias Op
+	aux := &struct {
+		*Alias
+		OpValue json.RawMessage `json:"OpValue"`
+	}{
+		Alias: (*Alias)(op),
+	}
+
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	switch op.OpType {
+	case Set:
+		var setOp SetOpValue
+		if err := json.Unmarshal(aux.OpValue, &setOp); err != nil {
+			return err
+		}
+		op.OpValue = setOp
+	case Del:
+		var delOp DelOpValue
+		if err := json.Unmarshal(aux.OpValue, &delOp); err != nil {
+			return err
+		}
+		op.OpValue = delOp
+	default:
+		return fmt.Errorf("unknown OpType: %d", op.OpType)
+	}
+
+	return nil
+}
+
 func getKeyFromOp(op Op) string {
 	switch v := op.OpValue.(type) {
 	case SetOpValue:
@@ -251,7 +284,7 @@ func BroadcastOp(client *http.Client, routingInfo *commons.RoutingInfo, nodeAddr
 	}()
 }
 
-func GetLogsFromLeaderByIndex(leaderUrl string, index, Shard_Id int) ([]Op, error) {
+func GetLogsFromLeaderByIndex(leaderUrl string, index int, Shard_Id int) ([]Op, error) {
 	bodyData, _ := json.Marshal(struct {
 		Id      int `json:"Id"`
 		ShardId int `json:"Shard_Id"`

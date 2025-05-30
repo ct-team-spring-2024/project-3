@@ -43,7 +43,7 @@ func nodeJoin(c *gin.Context) {
 }
 
 func fetchRoutingInfo(c *gin.Context) {
-	response :=  internal.FetchRoutingInfo()
+	response := internal.FetchRoutingInfo()
 	c.JSON(http.StatusOK, response)
 }
 

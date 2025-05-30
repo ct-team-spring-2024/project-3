@@ -90,6 +90,22 @@ func CopyPartition(partitionId int, sourceAddress string, destinationAddress str
 	// TODO
 }
 
+func NodeSyncNext(address string) error {
+	url := fmt.Sprintf("http://%s/sync-next-shards", address)
+
+	resp, err := http.Post(url, "application/json", nil)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func NodeMigrate(address string) error {
 	url := fmt.Sprintf("http://%s/migrate", address)
 

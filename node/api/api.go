@@ -106,9 +106,14 @@ func getLogs(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	logs := internal.Node.GetAllLogsFrom(requestBody.ShardId, requestBody.Id)
+	logs := internal.Node.GetShardLogsFrom(requestBody.ShardId, requestBody.Id)
 	// TODO send logs to the node
 	c.JSON(200, gin.H{"logs": logs})
+}
+
+func syncNextShards(c *gin.Context) {
+	internal.Node.SyncNextShards()
+	c.JSON(200, gin.H{"message": "next shards are updated."})
 }
 
 func migrate(c *gin.Context) {
@@ -138,5 +143,6 @@ func SetupRoutes(router *gin.Engine) {
 	router.POST("/set-shard-leader", setShardLeader)
 	router.GET("/health", checkHealth)
 	router.GET("/getlogs", getLogs)
+	router.POST("/sync-next-shards", syncNextShards)
 	router.POST("/migrate", migrate)
 }
